@@ -10,6 +10,7 @@
 import { distanceNm, bearingDeg, project, crossTrackNm } from './navdata.js';
 import { IdentEntry } from './ident.js';
 import { approachLegs, transitionNames } from './procedures.js';
+import { unitFor, DEFAULT_UNIT } from './units.js';
 
 export const PAGE_GROUPS = [
   { id: 'NAV', pages: ['DEFAULT_NAV', 'MAP', 'NAVCOM'] },
@@ -27,6 +28,7 @@ export class GNS {
   /** @param {import('./navdata.js').NavData} navdata */
   constructor(navdata, opts = {}) {
     this.db = navdata;
+    this.unit = unitFor(opts.unit ?? DEFAULT_UNIT);
     this.procs = opts.procedures ?? null;
     this.onLoadProcs = opts.onLoadProcs ?? null;
 
@@ -199,6 +201,10 @@ export class GNS {
         return this.#toggleFpl();
       case 'PROC':
         return this.#openProc();
+      case 'VNAV':
+        // The 500-series has a dedicated VNAV key; the page itself is a stub.
+        this.message = 'VNAV NOT IMPLEMENTED';
+        return;
       case 'CDI':
         this.navSource = this.navSource === 'GPS' ? 'VLOC' : 'GPS';
         return;
@@ -719,6 +725,8 @@ export class GNS {
       pageIndex: this.page,
       pageCount: PAGE_GROUPS[this.group].pages.length,
       cursor: this.cursor,
+      unit: this.unit.id,
+      px: { ...this.unit.px },
       com: { ...this.com },
       vloc: { ...this.vloc },
       tuning: this.tuning,

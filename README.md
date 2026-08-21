@@ -1,6 +1,6 @@
 # Direct-To
 
-A browser-based GNS 430W practice trainer for drilling knob and key work
+A browser-based GNS 430W / 530W practice trainer for drilling knob and key work
 on the ground — Direct-To, flight plans, nearest airports, and instrument
 approaches flown off real FAA procedure data.
 
@@ -105,6 +105,8 @@ worth having in muscle memory.
 | <kbd>backspace</kbd> | CLR (<kbd>shift</kbd> for press-and-hold) |
 | <kbd>d</kbd> <kbd>m</kbd> <kbd>f</kbd> <kbd>p</kbd> | D→, MENU, FPL, PROC |
 | <kbd>c</kbd> <kbd>o</kbd> <kbd>g</kbd> | CDI, OBS, MSG |
+| <kbd>n</kbd> | VNAV (530 only) |
+| <kbd>,</kbd> <kbd>.</kbd> | RNG in / out |
 | <kbd>[</kbd> <kbd>]</kbd> | large left knob (MHz) |
 | <kbd>-</kbd> <kbd>=</kbd> | small left knob (kHz) |
 | <kbd>v</kbd> | push C/V |
@@ -113,8 +115,9 @@ worth having in muscle memory.
 
 | File | Role |
 | --- | --- |
-| `src/bezelart.js` | The faceplate, drawn as SVG — sharp at any zoom |
-| `src/bezel.js` | Hit regions in the faceplate's 446×186 coordinate space, plus keyboard bindings |
+| `src/units.js` | Unit profiles: faceplate size, display box, resolution, hit regions |
+| `src/bezelart.js` | The faceplates, drawn as SVG — sharp at any zoom |
+| `src/bezel.js` | What each control means, plus keyboard bindings |
 | `src/gns.js` | The state machine. No DOM access, so it runs under plain node |
 | `src/ident.js` | The Spell'N'Find entry field shared by Direct-To, flight plan and WPT |
 | `src/screen.js` | Renders a view onto the unit's real 240×128 pixel grid |
@@ -129,10 +132,32 @@ photographs of a real unit.
 
 `window.__gns` is exposed in the browser console for poking at state.
 
+## Units
+
+The **430 / 530** toggle above the faceplate switches boxes. They are the same
+firmware in different housings, so the logic, pages and knobs are identical;
+what changes is the hardware and the room on screen:
+
+| | GNS 430W | GNS 530W |
+| --- | --- | --- |
+| Faceplate | 446×186 | 464×338 |
+| Display | 240×128 | 320×234 |
+| Bottom row | CDI OBS MSG FPL PROC | + VNAV |
+| RNG | horizontal rocker | vertical rocker |
+| Radios | flip-flop beside knob | flip-flop above knob |
+
+Every unit is described by a profile in `src/units.js` — faceplate size, where
+the display sits, its pixel resolution, and the clickable regions. Adding
+another box is that data plus a faceplate drawing.
+
+The screen layout is authored once in the 430's 240-wide space and scaled to
+the unit, so columns keep their proportions while the 530's extra pixels turn
+into extra rows: more flight plan legs, a longer nearest list, a taller map.
+
 ## Faceplate styles
 
 The **Modern / Original** toggle above the unit switches between the vector
-redraw and Garmin's own 446x186 trainer bitmap. Both are laid out in the same
+redraw and Garmin's own trainer bitmap. Both are laid out in the same
 coordinate space, so the buttons, knobs and screen line up identically either
 way. Your choice is remembered.
 
@@ -145,10 +170,12 @@ installer, extract it from your own copy:
 unshield -d trainer x sfx/Trainer/data1.cab
 7z x -obezel trainer/Program_Executable_Files/G530SIM.exe
 sips -s format png bezel/.rsrc/BITMAP/142.bmp --out assets/bezel-430.png
+sips -s format png bezel/.rsrc/BITMAP/132.bmp --out assets/bezel-530.png
 ```
 
 Reload and the Original skin turns on. (`brew install p7zip unshield` first;
-`sips` is built into macOS.)
+`sips` is built into macOS.) Bitmap 144 is the GPS 400 and 145 the GNC 420, if
+you ever want those too.
 
 ## Name
 
@@ -223,6 +250,10 @@ can cull to the viewport. Worst case is 2.9 ms per frame at 200 NM.
   data for those exists but would add a lot of bulk for little training value.
 - **Airspace is lateral only.** Floors and ceilings are in the source data but
   are not used, so a Class B shelf you are underneath still draws.
+- **The 530's Default NAV page does not use its extra height.** Every list page
+  and the map grow with the display; that one page keeps the 430's layout and
+  leaves space below.
+- **VNAV is a stub.** The 530 has the key; the page behind it is not built.
 - **Simple flight model.** Constant ground speed straight at the active
   waypoint; no wind, turn rate, or autopilot.
 - **No approach-mode CDI scaling.** The CDI stays at enroute sensitivity rather

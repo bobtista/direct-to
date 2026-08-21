@@ -4,8 +4,20 @@
 // whole grid up with a single CSS transform, so coordinates here can be read
 // straight off screenshots of the real unit.
 
-const W = 240;
-const H = 128;
+// Layout is authored in the 430's 240-wide space. For a bigger unit we scale
+// the primitives by S and hand the layout a taller logical canvas, so columns
+// keep their proportions while the extra pixels become extra rows.
+let W = 240;
+let H = 128;
+let S = 1;
+
+function setCanvas(px) {
+  S = px.w / 240;
+  W = 240;
+  H = px.h / S;
+}
+
+const u = (n) => Math.round(n * S * 100) / 100;
 
 // The data area to the right of the COM/VLOC panel.
 const DATA_X = 65;
@@ -16,11 +28,11 @@ const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 /** Absolutely positioned text. `a` sets alignment: l (default), c, or r. */
 function txt(s, x, y, { size = 7, color = 'var(--grn)', a = 'l', w, bold = false } = {}) {
   const style = [
-    `left:${a === 'l' ? x : a === 'c' ? x - (w ?? 0) / 2 : x - (w ?? 0)}px`,
-    `top:${y}px`,
-    `font-size:${size}px`,
+    `left:${u(a === 'l' ? x : a === 'c' ? x - (w ?? 0) / 2 : x - (w ?? 0))}px`,
+    `top:${u(y)}px`,
+    `font-size:${u(size)}px`,
     `color:${color}`,
-    w != null ? `width:${w}px;text-align:${a === 'c' ? 'center' : a === 'r' ? 'right' : 'left'}` : '',
+    w != null ? `width:${u(w)}px;text-align:${a === 'c' ? 'center' : a === 'r' ? 'right' : 'left'}` : '',
     bold ? 'font-weight:700' : '',
   ]
     .filter(Boolean)
@@ -29,11 +41,11 @@ function txt(s, x, y, { size = 7, color = 'var(--grn)', a = 'l', w, bold = false
 }
 
 function box(x, y, w, h, { fill = 'transparent', stroke = 'var(--cyn)' } = {}) {
-  return `<div class="b" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;background:${fill};border-color:${stroke}"></div>`;
+  return `<div class="b" style="left:${u(x)}px;top:${u(y)}px;width:${u(w)}px;height:${u(h)}px;background:${fill};border-color:${stroke}"></div>`;
 }
 
 function fill(x, y, w, h, color) {
-  return `<div class="f" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;background:${color}"></div>`;
+  return `<div class="f" style="left:${u(x)}px;top:${u(y)}px;width:${u(w)}px;height:${u(h)}px;background:${color}"></div>`;
 }
 
 const pad = (n, len) => String(n).padStart(len, '0');
@@ -53,7 +65,7 @@ const PANEL_W = 62;
 function radioStack(v) {
   const out = [];
   const comSel = v.tuning === 'COM';
-  out.push(fill(0, 0, PANEL_W, 116, 'var(--panel)'));
+  out.push(fill(0, 0, PANEL_W, H - 12, 'var(--panel)'));
   out.push(txt('COM', 2, 1, { size: 8, color: 'var(--cyn)', bold: true }));
   out.push(txt(v.com.active, 2, 9, { size: 13, color: '#fff', bold: true }));
   out.push(txt(v.com.standby, 2, 22, { size: 13, color: 'var(--cyn)', bold: true }));
@@ -62,8 +74,8 @@ function radioStack(v) {
   out.push(txt(v.vloc.standby, 2, 59, { size: 13, color: 'var(--cyn)', bold: true }));
   // The tuning cursor sits under whichever standby frequency the knobs drive.
   out.push(box(1, comSel ? 21 : 58, PANEL_W - 2, 15, { stroke: 'var(--amb)' }));
-  out.push(box(1, 94, PANEL_W - 2, 12));
-  out.push(txt(v.nav ? 'TERM' : 'ENR', PANEL_W / 2, 96, { size: 8, a: 'c', w: PANEL_W, bold: true }));
+  out.push(box(1, H - 34, PANEL_W - 2, 12));
+  out.push(txt(v.nav ? 'TERM' : 'ENR', PANEL_W / 2, H - 32, { size: 8, a: 'c', w: PANEL_W, bold: true }));
   return out.join('');
 }
 
@@ -71,16 +83,17 @@ function radioStack(v) {
 
 function statusBar(v) {
   const out = [];
-  out.push(fill(0, 116, W, 12, 'var(--panel)'));
-  out.push(txt(v.navSource, 2, 118, { size: 8, bold: true }));
-  out.push(txt(v.obs ? 'OBS' : '', 42, 118, { size: 8, bold: true }));
-  out.push(txt(v.message ? 'MSG' : '', 78, 118, { size: 8, color: 'var(--amb)', bold: true }));
+  const by = H - 12;
+  out.push(fill(0, by, W, 12, 'var(--panel)'));
+  out.push(txt(v.navSource, 2, by + 2, { size: 8, bold: true }));
+  out.push(txt(v.obs ? 'OBS' : '', 42, by + 2, { size: 8, bold: true }));
+  out.push(txt(v.message ? 'MSG' : '', 78, by + 2, { size: 8, color: 'var(--amb)', bold: true }));
   // Page-group name and the little square-per-page indicator.
   const sqX = W - 4 - v.pageCount * 7;
-  out.push(txt(v.group, sqX - 4, 118, { size: 8, a: 'r', w: 34, color: '#fff', bold: true }));
+  out.push(txt(v.group, sqX - 4, by + 2, { size: 8, a: 'r', w: 34, color: '#fff', bold: true }));
   for (let i = 0; i < v.pageCount; i++) {
-    out.push(fill(sqX + i * 7, 119, 5, 7, i === v.pageIndex ? '#fff' : 'transparent'));
-    out.push(box(sqX + i * 7, 119, 5, 7, { stroke: '#fff' }));
+    out.push(fill(sqX + i * 7, by + 3, 5, 7, i === v.pageIndex ? '#fff' : 'transparent'));
+    out.push(box(sqX + i * 7, by + 3, 5, 7, { stroke: '#fff' }));
   }
   return out.join('');
 }
@@ -192,7 +205,7 @@ function directTo(v) {
     txt(
       d.phase === 'IDENT' ? 'small knob: letter   large: next' : 'ENT to activate',
       W / 2,
-      106,
+      H - 22,
       { size: 7, a: 'c', w: W, color: 'var(--cyn)' }
     )
   );
@@ -221,7 +234,8 @@ function flightPlan(v) {
 
   const rowH = 13;
   const y0 = 22;
-  const perPage = 6;
+  // Fit as many rows as the display has room for, leaving space for the hint.
+  const perPage = Math.max(3, Math.floor((H - 12 - 14 - y0) / rowH));
   const rows = v.fpl.rows;
   const total = rows.length + 1; // trailing blank row for adding a waypoint
 
@@ -288,7 +302,7 @@ function flightPlan(v) {
     txt(
       v.cursor ? 'small: letter  large: move  ENT: ok' : 'press CRSR to edit',
       W / 2,
-      104.5,
+      H - 24,
       { size: 7, a: 'c', w: W, color: 'var(--cyn)' }
     )
   );
@@ -325,8 +339,9 @@ function simplePage(v, title, lines) {
 // --- map -------------------------------------------------------------------
 
 // The map keeps a data-field column on the right, as the unit does by default.
-const MAP = { x: 0, y: 10, w: 184, h: 106 };
+const mapBox = () => ({ x: 0, y: 10, w: 184, h: H - 22 });
 const MAP_DATA_X = 186;
+let MAP = { x: 0, y: 10, w: 184, h: 106 };
 
 // Basemap geometry, supplied by app.js once loaded. Kept out of the state
 // machine because it is presentation data, not device state.
@@ -441,7 +456,7 @@ function mapPage(v) {
   if (active) g.push(`<path class="m-leg act" d="${active}"/>`);
 
   out.push(
-    `<svg class="mapsvg" viewBox="0 0 ${W} ${H}" style="left:0;top:0;width:${W}px;height:${H}px">` +
+    `<svg class="mapsvg" viewBox="0 0 ${W} ${H}" style="left:0;top:0;width:${u(W)}px;height:${u(H)}px">` +
       `<clipPath id="mapclip"><rect x="${MAP.x}" y="${MAP.y}" width="${MAP.w}" height="${MAP.h}"/></clipPath>` +
       `<g clip-path="url(#mapclip)">${g.join('')}</g></svg>`
   );
@@ -509,7 +524,7 @@ function nrstPage(v) {
   }
 
   // Scroll so the highlighted row stays on screen.
-  const perPage = 7;
+  const perPage = Math.max(4, Math.floor((H - 12 - 22) / 13));
   const first = Math.max(0, Math.min(rows.length - perPage, v.nrst.index - 3));
   for (let r = 0; r < Math.min(perPage, rows.length - first); r++) {
     const row = rows[first + r];
@@ -526,10 +541,10 @@ function nrstPage(v) {
   }
 
   if (rows.length > perPage) {
-    const barH = Math.max(8, (perPage / rows.length) * 88);
-    const barY = 20 + (first / rows.length) * 88;
-    out.push(box(234, 20, 4, 88, { stroke: 'var(--cyn)' }));
-    out.push(fill(235, barY, 2, barH, 'var(--cyn)'));
+    const track = perPage * 13 - 2;
+    const barH = Math.max(8, (perPage / rows.length) * track);
+    out.push(box(234, 20, 4, track, { stroke: 'var(--cyn)' }));
+    out.push(fill(235, 20 + (first / rows.length) * track, 2, barH, 'var(--cyn)'));
   }
   return out.join('');
 }
@@ -640,7 +655,7 @@ function procPage(v) {
 
   const list = (title, items, sel, y0) => {
     out.push(txt(title, 8, 14, { size: 8, color: 'var(--cyn)', bold: true }));
-    const perPage = 6;
+    const perPage = Math.max(4, Math.floor((H - 16 - y0) / 14));
     const first = Math.max(0, Math.min(items.length - perPage, sel - 2));
     for (let i = 0; i < Math.min(perPage, items.length - first); i++) {
       const y = y0 + i * 14;
@@ -675,7 +690,7 @@ function procPage(v) {
       );
     });
     out.push(
-      txt('Load adds it to the flight plan; Activate flies it now', W / 2, 96, {
+      txt('Load adds it to the flight plan; Activate flies it now', W / 2, H - 32, {
         size: 6.6,
         a: 'c',
         w: W,
@@ -701,6 +716,8 @@ function messageOverlay(v) {
 
 /** Build the screen HTML for a view produced by GNS#view. */
 export function renderScreen(v) {
+  setCanvas(v.px ?? { w: 240, h: 128 });
+  MAP = mapBox();
   let body;
   if (v.mode === 'DTO') body = directTo(v);
   else if (v.mode === 'PROC') body = procPage(v);

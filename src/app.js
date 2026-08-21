@@ -1,14 +1,19 @@
-import { BEZEL, SCREEN, REGIONS, eventForRegion, KEYBOARD, CLR_HOLD_MS } from './bezel.js';
-import { bezelSvg } from './bezelart.js';
+import { eventForRegion, KEYBOARD, CLR_HOLD_MS } from './bezel.js';
+import { UNITS, DEFAULT_UNIT, unitFor } from './units.js';
 import { NavData } from './navdata.js';
 import { Procedures } from './procedures.js';
 import { GNS } from './gns.js';
-import { renderScreen, setBasemap, SCREEN_SIZE } from './screen.js';
+import { renderScreen, setBasemap } from './screen.js';
 
-const unit = document.getElementById('unit');
+const unitEl = document.getElementById('unit');
+const bezelEl = document.getElementById('bezel');
 const screenEl = document.getElementById('screen');
 const hitLayer = document.getElementById('hits');
 const statusEl = document.getElementById('status');
+const skinToggle = document.getElementById('skin-toggle');
+const unitToggle = document.getElementById('unit-toggle');
+
+// --- data ------------------------------------------------------------------
 
 const [raw, procIndex, basemap] = await Promise.all([
   fetch('./data/navdata.json').then((r) => r.json()),
@@ -27,7 +32,31 @@ const procedures = new Procedures(new Set(procIndex.airports), (apt) =>
   fetch(`./data/proc/${apt}.json`).then((r) => r.json())
 );
 
+// --- preferences -----------------------------------------------------------
+
+const UNIT_KEY = 'directto.unit';
+const SKIN_KEY = 'directto.skin';
+
+function readStore(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null; // private browsing
+  }
+}
+
+function writeStore(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // The choice just won't persist.
+  }
+}
+
+let unit = unitFor(readStore(UNIT_KEY) ?? DEFAULT_UNIT);
+
 const gns = new GNS(new NavData(raw.waypoints), {
+  unit: unit.id,
   procedures,
   onLoadProcs: async (apt) => {
     const list = await procedures.approaches(apt);
@@ -36,101 +65,124 @@ const gns = new GNS(new NavData(raw.waypoints), {
   },
 });
 
-// --- layout ---------------------------------------------------------------
+// --- faceplate -------------------------------------------------------------
+//
+// Both faceplates and every hit region are authored in the unit's own
+// coordinate space, so switching units rebuilds these three things and nothing
+// else in the app has to know.
 
-document.querySelector('#bezel .skin-modern').innerHTML = bezelSvg();
+const grid = document.createElement('div');
+grid.id = 'grid';
 
-// --- faceplate style -------------------------------------------------------
-// Both faceplates share the 446x186 coordinate space, so the hit regions and
-// the screen need no adjustment when switching.
+let originalAvailable = false;
 
-const SKIN_KEY = 'directto.skin';
-const skinToggle = document.getElementById('skin-toggle');
+function buildFaceplate() {
+  const { bezel, screen, regions, art, bitmap } = unit;
 
-let originalAvailable = true;
+  unitEl.style.setProperty('--bw', bezel.w);
+  unitEl.style.setProperty('--bh', bezel.h);
+
+  bezelEl.innerHTML =
+    `<div class="skin skin-modern">${art()}</div>` +
+    `<img class="skin skin-original" src="${bitmap}" alt="${unit.name} faceplate, original trainer artwork">`;
+
+  // The original artwork is Garmin's and is not distributed with the source, so
+  // the Original skin is only offered when the bitmap is actually present.
+  originalAvailable = false;
+  const img = bezelEl.querySelector('.skin-original');
+  const settle = () => setSkin(readStore(SKIN_KEY) ?? 'modern');
+  img.addEventListener('error', settle);
+  img.addEventListener('load', () => {
+    originalAvailable = true;
+    settle();
+  });
+
+  Object.assign(screenEl.style, {
+    left: `${(screen.x / bezel.w) * 100}%`,
+    top: `${(screen.y / bezel.h) * 100}%`,
+    width: `${(screen.w / bezel.w) * 100}%`,
+    height: `${(screen.h / bezel.h) * 100}%`,
+  });
+
+  grid.style.width = `${unit.px.w}px`;
+  grid.style.height = `${unit.px.h}px`;
+  if (grid.parentElement !== screenEl) screenEl.appendChild(grid);
+
+  // Smaller regions win, so a knob's centre push beats the rotate halves it
+  // sits inside.
+  hitLayer.innerHTML = '';
+  for (const r of [...regions].sort((a, b) => a.w * a.h - b.w * b.h)) {
+    const b = document.createElement('button');
+    b.className = 'hit';
+    b.dataset.id = r.id;
+    b.title = r.title;
+    b.setAttribute('aria-label', r.title);
+    Object.assign(b.style, {
+      left: `${(r.x / bezel.w) * 100}%`,
+      top: `${(r.y / bezel.h) * 100}%`,
+      width: `${(r.w / bezel.w) * 100}%`,
+      height: `${(r.h / bezel.h) * 100}%`,
+    });
+    hitLayer.appendChild(b);
+  }
+
+  fitScreen();
+}
+
+/** Scale the unit's pixel grid to whatever size the screen cutout ended up. */
+function fitScreen() {
+  const r = screenEl.getBoundingClientRect();
+  if (!r.width) return;
+  grid.style.transform = `scale(${r.width / unit.px.w}, ${r.height / unit.px.h})`;
+}
+
+// --- toggles ---------------------------------------------------------------
 
 function setSkin(skin) {
   if (skin === 'original' && !originalAvailable) skin = 'modern';
-  unit.dataset.skin = skin;
+  unitEl.dataset.skin = skin;
   for (const b of skinToggle.querySelectorAll('button')) {
     b.setAttribute('aria-pressed', String(b.dataset.skin === skin));
   }
-  try {
-    localStorage.setItem(SKIN_KEY, skin);
-  } catch {
-    // Private browsing; the choice just won't persist.
-  }
+  const originalBtn = skinToggle.querySelector('[data-skin="original"]');
+  originalBtn.disabled = !originalAvailable;
+  originalBtn.title = originalAvailable
+    ? `Garmin's original ${unit.short} trainer artwork`
+    : `Needs ${unit.bitmap}, extracted from your own copy of the Garmin trainer installer. See the README.`;
+  writeStore(SKIN_KEY, skin);
 }
+
+function setUnit(id) {
+  unit = unitFor(id);
+  gns.unit = unit;
+  writeStore(UNIT_KEY, unit.id);
+  for (const b of unitToggle.querySelectorAll('button')) {
+    b.setAttribute('aria-pressed', String(b.dataset.unit === unit.id));
+  }
+  buildFaceplate();
+  render();
+}
+
+for (const [id, u] of Object.entries(UNITS)) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.dataset.unit = id;
+  b.textContent = u.short;
+  b.title = u.name;
+  unitToggle.appendChild(b);
+}
+
+unitToggle.addEventListener('click', (e) => {
+  const id = e.target.closest('button')?.dataset.unit;
+  if (id && id !== unit.id) setUnit(id);
+});
 
 skinToggle.addEventListener('click', (e) => {
   const skin = e.target.closest('button')?.dataset.skin;
   if (skin) setSkin(skin);
 });
 
-// The original artwork is Garmin's and is not distributed with the source, so
-// the Original skin is only offered when the bitmap is actually present.
-const originalImg = document.querySelector('#bezel .skin-original');
-const originalBtn = skinToggle.querySelector('[data-skin="original"]');
-
-function disableOriginal() {
-  originalAvailable = false;
-  originalBtn.disabled = true;
-  originalBtn.title =
-    'Needs assets/bezel-430.png, extracted from your own copy of the Garmin trainer installer. See the README.';
-  // The image can fail before or after the saved preference is applied, so
-  // re-assert the skin either way.
-  setSkin(unit.dataset.skin);
-}
-
-originalImg.addEventListener('error', disableOriginal);
-if (originalImg.complete && originalImg.naturalWidth === 0) disableOriginal();
-
-let saved = null;
-try {
-  saved = localStorage.getItem(SKIN_KEY);
-} catch {
-  // Private browsing.
-}
-setSkin(saved === 'original' ? 'original' : 'modern');
-
-unit.style.setProperty('--bw', BEZEL.w);
-unit.style.setProperty('--bh', BEZEL.h);
-Object.assign(screenEl.style, {
-  left: `${(SCREEN.x / BEZEL.w) * 100}%`,
-  top: `${(SCREEN.y / BEZEL.h) * 100}%`,
-  width: `${(SCREEN.w / BEZEL.w) * 100}%`,
-  height: `${(SCREEN.h / BEZEL.h) * 100}%`,
-});
-
-/** Scale the 240x128 grid to whatever size the screen cutout ended up. */
-function fitScreen() {
-  const r = screenEl.getBoundingClientRect();
-  const grid = screenEl.firstElementChild;
-  grid.style.transform = `scale(${r.width / SCREEN_SIZE.W}, ${r.height / SCREEN_SIZE.H})`;
-}
-
-// --- hit regions ----------------------------------------------------------
-
-// Smaller regions win, so a knob's centre push beats the rotate halves it sits inside.
-const ordered = [...REGIONS].sort((a, b) => a.w * a.h - b.w * b.h);
-
-for (const r of ordered) {
-  const b = document.createElement('button');
-  b.className = 'hit';
-  b.dataset.id = r.id;
-  b.title = r.title;
-  b.setAttribute('aria-label', r.title);
-  Object.assign(b.style, {
-    left: `${(r.x / BEZEL.w) * 100}%`,
-    top: `${(r.y / BEZEL.h) * 100}%`,
-    width: `${(r.w / BEZEL.w) * 100}%`,
-    height: `${(r.h / BEZEL.h) * 100}%`,
-  });
-  hitLayer.appendChild(b);
-}
-
-// Knob rotate regions have no key of their own; light the knob's other art.
-const ART_FOR = { RNG_UP: 'RNG', RNG_DOWN: 'RNG' };
+// --- input -----------------------------------------------------------------
 
 function flash(id) {
   const el = hitLayer.querySelector(`[data-id="${id}"]`);
@@ -138,7 +190,10 @@ function flash(id) {
     el.classList.add('active');
     setTimeout(() => el.classList.remove('active'), 90);
   }
-  const art = document.getElementById(`art-${ART_FOR[id] ?? id}`);
+  // The 430 draws RNG as a single rocker; the 530 has separate halves.
+  const art =
+    document.getElementById(`art-${id}`) ??
+    (id.startsWith('RNG') ? document.getElementById('art-RNG') : null);
   if (art) {
     art.classList.add('pressed');
     setTimeout(() => art.classList.remove('pressed'), 90);
@@ -175,20 +230,19 @@ hitLayer.addEventListener('pointerdown', (e) => {
 });
 
 hitLayer.addEventListener('pointerup', (e) => {
-  const id = e.target.dataset?.id;
-  if (id !== 'CLR') return;
+  if (e.target.dataset?.id !== 'CLR') return;
   clearTimeout(clrTimer);
   if (!clrFired) fire('CLR');
 });
 
 hitLayer.addEventListener('pointerleave', () => clearTimeout(clrTimer), true);
 
-// --- keyboard -------------------------------------------------------------
-
 window.addEventListener('keydown', (e) => {
-  if (e.repeat) return;
+  if (e.repeat || e.target.tagName === 'BUTTON') return;
   const id = KEYBOARD[e.key] ?? KEYBOARD[e.key.toLowerCase()];
   if (!id) return;
+  // Only act on controls this unit actually has.
+  if (!unit.regions.some((r) => r.id === id)) return;
   e.preventDefault();
   if (id === 'CLR' && e.shiftKey) {
     gns.handle({ type: 'hold', key: 'CLR' });
@@ -199,13 +253,7 @@ window.addEventListener('keydown', (e) => {
   fire(id);
 });
 
-// --- render loop ----------------------------------------------------------
-
-const grid = document.createElement('div');
-grid.id = 'grid';
-grid.style.width = `${SCREEN_SIZE.W}px`;
-grid.style.height = `${SCREEN_SIZE.H}px`;
-screenEl.appendChild(grid);
+// --- render loop -----------------------------------------------------------
 
 function render() {
   grid.innerHTML = renderScreen(gns.view);
@@ -221,12 +269,10 @@ setInterval(() => {
   if (gns.to) render();
 }, 1000);
 
+new ResizeObserver(fitScreen).observe(screenEl);
+
 // Exposed for debugging from the console, and for the browser tests.
 window.__gns = gns;
 window.__render = render;
 
-const ro = new ResizeObserver(fitScreen);
-ro.observe(screenEl);
-
-fitScreen();
-render();
+setUnit(unit.id);

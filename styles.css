@@ -34,6 +34,15 @@ main {
   flex-wrap: wrap;
 }
 
+/* The 530 is much taller than the 430. Constrain the *width* so the aspect
+   ratio still governs the box: capping height instead would letterbox the SVG
+   while the percentage-positioned screen and hit regions kept using the full
+   box, and everything would drift apart. */
+#unit {
+  width: min(100%, calc(76vh * var(--bw) / var(--bh)));
+  margin-inline: auto;
+}
+
 #brand h1 {
   margin: 0;
   font-size: 20px;
@@ -48,8 +57,12 @@ main {
   color: #8a93a6;
 }
 
-#skin-toggle {
+#unit-toggle {
   margin-left: auto;
+}
+
+#unit-toggle,
+#skin-toggle {
   display: inline-flex;
   border: 1px solid #333a4b;
   border-radius: 7px;
@@ -57,6 +70,7 @@ main {
   background: #171b23;
 }
 
+#unit-toggle button,
 #skin-toggle button {
   appearance: none;
   border: 0;
@@ -68,19 +82,23 @@ main {
   cursor: pointer;
 }
 
+#unit-toggle button + button,
 #skin-toggle button + button {
   border-left: 1px solid #333a4b;
 }
 
+#unit-toggle button:hover:not(:disabled),
 #skin-toggle button:hover:not(:disabled) {
   color: var(--ink);
 }
 
+#unit-toggle button:disabled,
 #skin-toggle button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
+#unit-toggle button[aria-pressed='true'],
 #skin-toggle button[aria-pressed='true'] {
   background: #2b3448;
   color: var(--ink);

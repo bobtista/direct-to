@@ -11,6 +11,7 @@
       <header id="brand">
         <h1>Direct-To</h1>
         <p>GNS 430W practice trainer</p>
+        <div id="unit-toggle" role="group" aria-label="Unit"></div>
         <div id="skin-toggle" role="group" aria-label="Faceplate style">
           <button type="button" data-skin="modern" aria-pressed="true">Modern</button>
           <button type="button" data-skin="original" aria-pressed="false">Original</button>
@@ -18,14 +19,7 @@
       </header>
 
       <div id="unit" data-skin="modern">
-        <div id="bezel">
-          <div class="skin skin-modern"></div>
-          <img
-            class="skin skin-original"
-            src="assets/bezel-430.png"
-            alt="Garmin GNS 430 faceplate, original trainer artwork"
-          />
-        </div>
+        <div id="bezel"></div>
         <div id="screen"></div>
         <div id="hits"></div>
       </div>
