@@ -1,0 +1,15 @@
+{
+  "name": "direct-to",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A browser-based GNS 430W practice trainer for knob and key work on the ground",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "test": "node --test test/*.test.mjs",
+    "build:navdata": "node tools/build-navdata.mjs",
+    "build:procedures": "node tools/build-procedures.mjs",
+    "build:basemap": "node --max-old-space-size=6144 tools/build-basemap.mjs",
+    "stop": "pkill -f 'tools/serve.mjs' || pkill -f 'http.server 8765' || true"
+  }
+}

@@ -1,0 +1,14 @@
+node_modules/
+.DS_Store
+.gstack/
+
+# Garmin's trainer installer and manuals: copyrighted, and the installer alone
+# is 190 MB. Both are extracted locally; see the README for how.
+*.exe
+manuals/
+user-manual*.pdf
+Screenshot*.png
+
+# Garmin's own faceplate bitmap, extracted from the installer above. The
+# Original skin uses it when present; see the README to enable it locally.
+assets/bezel-430.png

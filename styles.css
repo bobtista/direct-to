@@ -1,0 +1,373 @@
+:root {
+  --grn: #35ff35;
+  --cyn: #46d7ff;
+  --mag: #ff4cf0;
+  --amb: #ffd33d;
+  --panel: #1b2f9c;
+  --ink: #e8ecf3;
+  --bg: #12151b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 24px 16px 48px;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  display: flex;
+  justify-content: center;
+}
+
+main {
+  width: min(1340px, 100%);
+}
+
+#brand {
+  margin: 0 2px 16px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+#brand h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+#brand p {
+  margin: 0;
+  font-size: 13px;
+  color: #8a93a6;
+}
+
+#skin-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  border: 1px solid #333a4b;
+  border-radius: 7px;
+  overflow: hidden;
+  background: #171b23;
+}
+
+#skin-toggle button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #8a93a6;
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 13px;
+  cursor: pointer;
+}
+
+#skin-toggle button + button {
+  border-left: 1px solid #333a4b;
+}
+
+#skin-toggle button:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+#skin-toggle button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+#skin-toggle button[aria-pressed='true'] {
+  background: #2b3448;
+  color: var(--ink);
+}
+
+/* --- the unit ----------------------------------------------------------- */
+
+#unit {
+  position: relative;
+  width: 100%;
+  aspect-ratio: var(--bw) / var(--bh);
+  user-select: none;
+  filter: drop-shadow(0 18px 40px rgb(0 0 0 / 0.55));
+}
+
+#bezel {
+  width: 100%;
+  height: 100%;
+}
+
+#bezel .skin {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#bezel svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* The original artwork is 446x186, so scale it without smoothing. */
+#bezel .skin-original {
+  image-rendering: pixelated;
+}
+
+#unit[data-skin='modern'] .skin-original,
+#unit[data-skin='original'] .skin-modern {
+  display: none;
+}
+
+/* Faceplate lettering. Condensed grotesque is the closest common match to
+   Garmin's moulded labels. */
+#bezel .lbl,
+#bezel .micro,
+#bezel .brand,
+#bezel .model {
+  fill: #e9e9e9;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+#bezel .micro {
+  font-size: 4.6px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+#bezel .brand {
+  letter-spacing: 0.1em;
+}
+
+#bezel .model {
+  fill: #c9c9c9;
+  font-weight: 600;
+}
+
+#bezel .lbl.dark {
+  fill: #17181a;
+}
+
+/* Keys dip and darken when struck. */
+#bezel .key {
+  transition: transform 70ms ease, filter 70ms ease;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+#bezel .key.pressed {
+  transform: translateY(0.6px) scale(0.985);
+  filter: brightness(0.72);
+}
+
+#screen {
+  position: absolute;
+  overflow: hidden;
+  background: #000;
+}
+
+#grid {
+  position: absolute;
+  inset: 0;
+  transform-origin: top left;
+  font-family: "DejaVu Sans Mono", "Menlo", "Consolas", monospace;
+  letter-spacing: -0.02em;
+}
+
+#grid .t {
+  position: absolute;
+  white-space: pre;
+  line-height: 1;
+}
+
+#grid .b {
+  position: absolute;
+  border: 1px solid var(--cyn);
+}
+
+#grid .f {
+  position: absolute;
+}
+
+/* Map geometry is one SVG: coastlines and airspace are far too many segments
+   to position individually. */
+#grid .mapsvg {
+  position: absolute;
+  overflow: visible;
+}
+
+#grid .mapsvg path,
+#grid .mapsvg circle {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+#grid .m-coast {
+  stroke: #6f8ea8;
+  stroke-width: 0.6;
+}
+
+#grid .m-lake {
+  stroke: #4a7fd4;
+  stroke-width: 0.6;
+}
+
+#grid .m-as {
+  stroke-width: 0.6;
+}
+
+/* Sectional conventions: Class B and D blue, C magenta, E surface dashed. */
+#grid .m-as-B { stroke: #4aa3ff; stroke-width: 0.8; }
+#grid .m-as-C { stroke: #d06bd0; }
+#grid .m-as-D { stroke: #4aa3ff; stroke-dasharray: 2 1.5; }
+#grid .m-as-E { stroke: #8f6fb5; stroke-dasharray: 1 1.5; }
+
+#grid .m-ring {
+  stroke: var(--cyn);
+  stroke-width: 0.6;
+  opacity: 0.55;
+}
+
+#grid .m-leg {
+  stroke: var(--grn);
+  stroke-width: 1;
+}
+
+#grid .m-leg.act {
+  stroke: var(--mag);
+  stroke-width: 1.6;
+}
+
+/* Map primitives: clipping box, range ring, flight plan legs. */
+#grid .clip {
+  position: absolute;
+  overflow: hidden;
+}
+
+#grid .clipin {
+  position: absolute;
+  width: 240px;
+  height: 128px;
+}
+
+#grid .ring {
+  position: absolute;
+  border: 1px solid var(--cyn);
+  border-radius: 50%;
+  opacity: 0.55;
+}
+
+#grid .leg {
+  position: absolute;
+  height: 1px;
+  background: var(--grn);
+  transform-origin: 0 0;
+}
+
+#grid .leg.act {
+  height: 2px;
+  background: var(--mag);
+}
+
+/* --- clickable regions --------------------------------------------------- */
+
+#hits {
+  position: absolute;
+  inset: 0;
+}
+
+.hit {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 90ms ease;
+}
+
+.hit:hover {
+  background: rgb(255 255 255 / 0.16);
+}
+
+.hit:focus-visible {
+  outline: 2px solid var(--amb);
+  outline-offset: 1px;
+}
+
+.hit.active {
+  background: rgb(255 211 61 / 0.55);
+}
+
+/* --- chrome -------------------------------------------------------------- */
+
+#status {
+  margin: 18px 2px 0;
+  font-family: "DejaVu Sans Mono", "Menlo", monospace;
+  font-size: 13px;
+  color: var(--grn);
+}
+
+#help {
+  margin-top: 22px;
+  padding: 14px 16px;
+  border: 1px solid #2a3040;
+  border-radius: 8px;
+  background: #171b23;
+}
+
+#help summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#help .cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 8px 32px;
+  margin-top: 12px;
+}
+
+#help h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cyn);
+}
+
+#help ol {
+  margin: 0 0 10px;
+  padding-left: 20px;
+}
+
+#help table {
+  border-collapse: collapse;
+}
+
+#help td {
+  padding: 2px 14px 2px 0;
+  vertical-align: top;
+}
+
+#help code,
+kbd {
+  font-family: "DejaVu Sans Mono", "Menlo", monospace;
+  font-size: 12px;
+}
+
+kbd {
+  padding: 1px 5px;
+  border: 1px solid #39415a;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: #232936;
+}

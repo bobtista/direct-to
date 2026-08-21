@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Direct-To</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main>
+      <header id="brand">
+        <h1>Direct-To</h1>
+        <p>GNS 430W practice trainer</p>
+        <div id="skin-toggle" role="group" aria-label="Faceplate style">
+          <button type="button" data-skin="modern" aria-pressed="true">Modern</button>
+          <button type="button" data-skin="original" aria-pressed="false">Original</button>
+        </div>
+      </header>
+
+      <div id="unit" data-skin="modern">
+        <div id="bezel">
+          <div class="skin skin-modern"></div>
+          <img
+            class="skin skin-original"
+            src="assets/bezel-430.png"
+            alt="Garmin GNS 430 faceplate, original trainer artwork"
+          />
+        </div>
+        <div id="screen"></div>
+        <div id="hits"></div>
+      </div>
+
+      <p id="status">loading…</p>
+
+      <details id="help">
+        <summary>Keyboard shortcuts &amp; how to fly a Direct-To</summary>
+        <div class="cols">
+          <div>
+            <h3>Direct-To</h3>
+            <ol>
+              <li>Press <kbd>D→</kbd></li>
+              <li><b>Small right knob</b> spells the character under the cursor</li>
+              <li><b>Large right knob</b> moves to the next character</li>
+              <li><kbd>ENT</kbd> confirms the identifier</li>
+              <li><kbd>ENT</kbd> again on <i>Activate?</i></li>
+            </ol>
+            <p>
+              The unit auto-fills the rest of the identifier from the database as you
+              spell — Garmin calls it Spell'N'Find. Try <code>KJYO</code> or
+              <code>CSN</code>.
+            </p>
+          </div>
+          <div>
+            <h3>Keys</h3>
+            <table>
+              <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>large right knob</td></tr>
+              <tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td>small right knob</td></tr>
+              <tr><td><kbd>space</kbd></td><td>push CRSR</td></tr>
+              <tr><td><kbd>enter</kbd></td><td>ENT</td></tr>
+              <tr><td><kbd>backspace</kbd></td><td>CLR (<kbd>shift</kbd> = hold)</td></tr>
+              <tr><td><kbd>d</kbd> <kbd>m</kbd> <kbd>f</kbd> <kbd>p</kbd></td><td>D→, MENU, FPL, PROC</td></tr>
+              <tr><td><kbd>c</kbd> <kbd>o</kbd> <kbd>g</kbd></td><td>CDI, OBS, MSG</td></tr>
+              <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>large left knob (MHz)</td></tr>
+              <tr><td><kbd>-</kbd> <kbd>=</kbd></td><td>small left knob (kHz)</td></tr>
+              <tr><td><kbd>v</kbd></td><td>push C/V</td></tr>
+            </table>
+          </div>
+        </div>
+      </details>
+    </main>
+
+    <script type="module" src="src/app.js"></script>
+  </body>
+</html>
