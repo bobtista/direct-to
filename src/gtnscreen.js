@@ -4,7 +4,7 @@
 // touchable element carries data-touch, and app.js forwards those to the state
 // machine. Behaviour follows the GTN Xi Series Pilot's Guide (190-02327-03).
 
-import { mapLayers } from './mapdraw.js';
+import { mapLayers, projector } from './mapdraw.js';
 
 const W = 840;
 const H = 372;
@@ -161,33 +161,25 @@ function mapPage(v) {
   const cx = box.x + box.w / 2;
   const cy = box.y + box.h / 2;
 
+  const opts = {
+    pos: v.pos,
+    trk: v.nav?.trk ?? 0,
+    range: v.mapRange,
+    box,
+    plan: v.mapPlan ?? [],
+    direct: v.mapDirect,
+    declutter: v.declutter ?? 0,
+  };
+
   out.push(
     `<svg class="mapsvg" viewBox="0 0 ${W} ${H}" style="left:0;top:0;width:${W}px;height:${H}px">` +
       `<clipPath id="gmapclip"><rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}"/></clipPath>` +
-      `<g clip-path="url(#gmapclip)">${mapLayers({
-        pos: v.pos,
-        trk: v.nav?.trk ?? 0,
-        range: v.mapRange,
-        box,
-        plan: v.mapPlan ?? [],
-        direct: v.mapDirect,
-        declutter: v.declutter ?? 0,
-      })}</g></svg>`
+      `<g clip-path="url(#gmapclip)">${mapLayers(opts)}</g></svg>`
   );
 
-  const ppnm = box.h / 2 / v.mapRange;
-  const hdg = ((v.nav?.trk ?? 0) * Math.PI) / 180;
-  const cosLat = Math.max(0.05, Math.cos((v.pos.lat * Math.PI) / 180));
-  const to = (p) => {
-    const north = (p.lat - v.pos.lat) * 60;
-    const east = (p.lon - v.pos.lon) * 60 * cosLat;
-    return [
-      cx + (east * Math.cos(hdg) - north * Math.sin(hdg)) * ppnm,
-      cy - (east * Math.sin(hdg) + north * Math.cos(hdg)) * ppnm,
-    ];
-  };
+  const project = projector(opts);
   const symbol = (p, label, on) => {
-    const [x, y] = to(p);
+    const [x, y] = project(p.lon, p.lat);
     if (x < box.x - 20 || x > box.x + box.w + 20 || y < box.y - 20 || y > box.y + box.h + 20) return;
     const c = on ? '#ff4cf0' : '#35ff35';
     out.push(`<div class="gdot" style="left:${x - 3}px;top:${y - 3}px;background:${c}"></div>`);
@@ -360,5 +352,3 @@ export function renderGtnScreen(v) {
   }
   return body;
 }
-
-export const GTN_SIZE = { W, H };

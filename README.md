@@ -22,7 +22,8 @@ moves to the next free one. `npm stop` shuts it down.
 npm test
 ```
 
-runs 51 tests against the state machine, procedures and basemap data. No browser needed.
+runs 58 tests: the state machine, the procedure and basemap data, and a
+rendering pass over every page of every unit. No browser needed.
 
 ## Practising a Direct-To
 

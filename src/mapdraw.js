@@ -9,8 +9,6 @@ export const setBasemap = (data) => {
   basemap = data ?? basemap;
 };
 
-export const getBasemap = () => basemap;
-
 /**
  * Track-up projection into a box.
  * @param {{pos:{lat:number,lon:number}, trk:number, range:number,
@@ -123,14 +121,4 @@ export function mapLayers(o) {
   if (active) g.push(`<path class="m-leg act" d="${active}"/>`);
 
   return g.join('');
-}
-
-/** Wrap map contents in a clipped SVG sized to the display. */
-export function mapSvg(o, pxW, pxH, scale = 1) {
-  return (
-    `<svg class="mapsvg" viewBox="0 0 ${pxW} ${pxH}" style="left:0;top:0;` +
-    `width:${pxW * scale}px;height:${pxH * scale}px">` +
-    `<clipPath id="mapclip"><rect x="${o.box.x}" y="${o.box.y}" width="${o.box.w}" height="${o.box.h}"/></clipPath>` +
-    `<g clip-path="url(#mapclip)">${mapLayers(o)}</g></svg>`
-  );
 }

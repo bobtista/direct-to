@@ -4,6 +4,8 @@
 // whole grid up with a single CSS transform, so coordinates here can be read
 // straight off screenshots of the real unit.
 
+import { mapLayers, projector } from './mapdraw.js';
+
 // Layout is authored in the 430's 240-wide space. For a bigger unit we scale
 // the primitives by S and hand the layout a taller logical canvas, so columns
 // keep their proportions while the extra pixels become extra rows.
@@ -368,20 +370,11 @@ function mapPage(v) {
       `<g clip-path="url(#mapclip)">${mapLayers(opts)}</g></svg>`
   );
 
-  // Waypoint symbols and labels stay as text so they match the rest of the UI.
-  const to = (p) => {
-    const ppnm = MAP.h / 2 / v.mapRange;
-    const hdg = ((v.nav?.trk ?? 0) * Math.PI) / 180;
-    const cosLat = Math.max(0.05, Math.cos((v.pos.lat * Math.PI) / 180));
-    const north = (p.lat - v.pos.lat) * 60;
-    const east = (p.lon - v.pos.lon) * 60 * cosLat;
-    return [
-      cx + (east * Math.cos(hdg) - north * Math.sin(hdg)) * ppnm,
-      cy - (east * Math.sin(hdg) + north * Math.cos(hdg)) * ppnm,
-    ];
-  };
+  // Waypoint symbols and labels stay as text so they match the rest of the UI,
+  // but they use the same projection the geometry does.
+  const project = projector(opts);
   const symbol = (p, label, isActive) => {
-    const [x, y] = to(p);
+    const [x, y] = project(p.lon, p.lat);
     if (x < MAP.x - 10 || x > MAP.x + MAP.w + 10 || y < MAP.y - 10 || y > MAP.y + MAP.h + 10) return;
     const c = isActive ? 'var(--mag)' : 'var(--grn)';
     out.push(fill(x - 1.5, y - 1.5, 3, 3, c));
@@ -673,5 +666,3 @@ export function renderScreen(v) {
   if (v.message) body += messageOverlay(v);
   return body;
 }
-
-export const SCREEN_SIZE = { W, H };
