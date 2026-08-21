@@ -107,8 +107,12 @@ worth having in muscle memory.
 | <kbd>backspace</kbd> | CLR (<kbd>shift</kbd> for press-and-hold) |
 | <kbd>d</kbd> <kbd>m</kbd> <kbd>f</kbd> <kbd>p</kbd> | D→, MENU, FPL, PROC |
 | <kbd>c</kbd> <kbd>o</kbd> <kbd>g</kbd> | CDI, OBS, MSG |
-| <kbd>n</kbd> | VNAV (530 only) |
+| <kbd>n</kbd> | VNAV (530) |
+| <kbd>h</kbd> | HOME (650Xi) |
 | <kbd>,</kbd> <kbd>.</kbd> | RNG in / out |
+
+Only the keys a unit actually has do anything. The 650Xi is a touchscreen — tap
+the display.
 | <kbd>[</kbd> <kbd>]</kbd> | large left knob (MHz) |
 | <kbd>-</kbd> <kbd>=</kbd> | small left knob (kHz) |
 | <kbd>v</kbd> | push C/V |

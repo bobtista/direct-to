@@ -1,8 +1,8 @@
-// GNS 430W state machine.
+// The unit state machine, shared by every box in units.js.
 //
 // Deliberately free of any DOM reference: it consumes the event stream that
-// bezel.js produces and exposes a plain-object view for screen.js to render.
-// That keeps it testable under plain node.
+// bezel.js produces (or touch targets, for the touchscreen units) and exposes a
+// plain-object view for the renderers. That keeps it testable under plain node.
 //
 // Behaviour follows the 400W-series Pilot's Guide (190-00356-00): Direct-To in
 // Section 3, flight plans in Section 4, procedures in Section 5.

@@ -161,8 +161,12 @@ for (const [id, u] of Object.entries(UNITS)) {
 }
 
 unitToggle.addEventListener('click', (e) => {
-  const id = e.target.closest('button')?.dataset.unit;
-  if (id && id !== unit.id) setUnit(id);
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  // The button keeps focus after a click, which would otherwise swallow every
+  // keyboard shortcut until you click elsewhere.
+  btn.blur();
+  if (btn.dataset.unit !== unit.id) setUnit(btn.dataset.unit);
 });
 
 // --- input -----------------------------------------------------------------

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A browser-based GNS 430W practice trainer for knob and key work on the ground",
+  "description": "A browser-based aviation GPS practice trainer: knob, key and touch work on the ground",
   "scripts": {
     "start": "node tools/serve.mjs",
     "test": "node --test test/*.test.mjs",

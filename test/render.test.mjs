@@ -12,6 +12,7 @@ import { NavData } from '../src/navdata.js';
 import { GNS, PAGE_GROUPS } from '../src/gns.js';
 import { UNITS } from '../src/units.js';
 import { renderScreen } from '../src/screen.js';
+import { eventForRegion, KEYBOARD } from '../src/bezel.js';
 import { renderGtnScreen } from '../src/gtnscreen.js';
 import { setBasemap } from '../src/mapdraw.js';
 
@@ -107,5 +108,21 @@ test('a message overlay renders on both families', () => {
     const g = flying(id);
     g.message = 'TEST MESSAGE';
     assert.ok(render(g).includes('TEST MESSAGE'), `${id} shows messages`);
+  }
+});
+
+test('every hit region on every unit maps to an event', () => {
+  for (const [id, u] of Object.entries(UNITS)) {
+    for (const r of u.regions) {
+      assert.ok(eventForRegion(r.id), `${id}: region ${r.id} has no event mapping`);
+    }
+  }
+});
+
+test('every keyboard binding targets a region some unit actually has', () => {
+  const known = new Set(Object.values(UNITS).flatMap((u) => u.regions.map((r) => r.id)));
+  for (const [key, id] of Object.entries(KEYBOARD)) {
+    assert.ok(known.has(id), `key "${key}" maps to ${id}, which no unit has`);
+    assert.ok(eventForRegion(id), `key "${key}" maps to ${id}, which has no event`);
   }
 });
