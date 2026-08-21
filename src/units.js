@@ -135,8 +135,6 @@ export const UNITS = {
     softKeys: ['CDI', 'OBS', 'MSG', 'FPL', 'PROC'],
     hasVloc: true,
     art: bezel430Svg,
-    // Only the original artwork we can extract has a bitmap skin available.
-    bitmap: 'assets/bezel-430.png',
   },
   GNS530: {
     id: 'GNS530',
@@ -150,7 +148,6 @@ export const UNITS = {
     softKeys: ['CDI', 'OBS', 'MSG', 'FPL', 'VNAV', 'PROC'],
     hasVloc: true,
     art: bezel530Svg,
-    bitmap: 'assets/bezel-530.png',
   },
   GTN650XI: {
     id: 'GTN650XI',
@@ -166,9 +163,6 @@ export const UNITS = {
     softKeys: [],
     hasVloc: true,
     art: bezel650XiSvg,
-    // Nothing to extract: a touchscreen unit has no faceplate artwork worth
-    // lifting, so this drawing is entirely our own.
-    bitmap: null,
   },
 };
 

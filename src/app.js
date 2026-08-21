@@ -12,7 +12,6 @@ const bezelEl = document.getElementById('bezel');
 const screenEl = document.getElementById('screen');
 const hitLayer = document.getElementById('hits');
 const statusEl = document.getElementById('status');
-const skinToggle = document.getElementById('skin-toggle');
 const unitToggle = document.getElementById('unit-toggle');
 
 // --- data ------------------------------------------------------------------
@@ -37,7 +36,6 @@ const procedures = new Procedures(new Set(procIndex.airports), (apt) =>
 // --- preferences -----------------------------------------------------------
 
 const UNIT_KEY = 'directto.unit';
-const SKIN_KEY = 'directto.skin';
 
 function readStore(key) {
   try {
@@ -76,34 +74,13 @@ const gns = new GNS(new NavData(raw.waypoints), {
 const grid = document.createElement('div');
 grid.id = 'grid';
 
-let originalAvailable = false;
-
 function buildFaceplate() {
-  const { bezel, screen, regions, art, bitmap } = unit;
+  const { bezel, screen, regions, art } = unit;
 
   unitEl.style.setProperty('--bw', bezel.w);
   unitEl.style.setProperty('--bh', bezel.h);
 
-  // A touchscreen unit has no faceplate artwork worth lifting, so some units
-  // simply have no original skin to offer.
-  bezelEl.innerHTML =
-    `<div class="skin skin-modern">${art()}</div>` +
-    (bitmap
-      ? `<img class="skin skin-original" src="${bitmap}" alt="${unit.name} faceplate, original trainer artwork">`
-      : '');
-
-  originalAvailable = false;
-  const img = bezelEl.querySelector('.skin-original');
-  const settle = () => setSkin(readStore(SKIN_KEY) ?? 'modern');
-  if (!img) {
-    settle();
-  } else {
-    img.addEventListener('error', settle);
-    img.addEventListener('load', () => {
-      originalAvailable = true;
-      settle();
-    });
-  }
+  bezelEl.innerHTML = art();
 
   Object.assign(screenEl.style, {
     left: `${(screen.x / bezel.w) * 100}%`,
@@ -147,22 +124,6 @@ function fitScreen() {
 
 // --- toggles ---------------------------------------------------------------
 
-function setSkin(skin) {
-  if (skin === 'original' && !originalAvailable) skin = 'modern';
-  unitEl.dataset.skin = skin;
-  for (const b of skinToggle.querySelectorAll('button')) {
-    b.setAttribute('aria-pressed', String(b.dataset.skin === skin));
-  }
-  const originalBtn = skinToggle.querySelector('[data-skin="original"]');
-  originalBtn.disabled = !originalAvailable;
-  originalBtn.title = originalAvailable
-    ? `Garmin's original ${unit.short} trainer artwork`
-    : unit.bitmap
-      ? `Needs ${unit.bitmap}, extracted from your own copy of the Garmin trainer installer. See the README.`
-      : `${unit.name} is a touchscreen unit — its faceplate is drawn, not extracted.`;
-  writeStore(SKIN_KEY, skin);
-}
-
 function setUnit(id) {
   unit = unitFor(id);
   gns.unit = unit;
@@ -186,11 +147,6 @@ for (const [id, u] of Object.entries(UNITS)) {
 unitToggle.addEventListener('click', (e) => {
   const id = e.target.closest('button')?.dataset.unit;
   if (id && id !== unit.id) setUnit(id);
-});
-
-skinToggle.addEventListener('click', (e) => {
-  const skin = e.target.closest('button')?.dataset.skin;
-  if (skin) setSkin(skin);
 });
 
 // --- input -----------------------------------------------------------------

@@ -28,7 +28,7 @@ test('the GTN profile is a touch unit with only its physical keys', () => {
   const ids = u.regions.map((r) => r.id);
   assert.ok(ids.includes('HOME') && ids.includes('DTO'), 'the two hard keys');
   assert.ok(!ids.includes('CDI') && !ids.includes('FPL'), 'no soft key row on a touchscreen');
-  assert.equal(u.bitmap, null, 'nothing to extract, so nothing to fall back to');
+  assert.equal(u.bitmap, undefined, 'faceplates are drawn, never bitmaps');
   assert.deepEqual(u.px, { w: 840, h: 372 });
 });
 

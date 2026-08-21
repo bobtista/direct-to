@@ -151,6 +151,9 @@ The two GNS boxes are the same firmware in different housings, so their logic,
 pages and knobs are identical; what changes is the hardware and the room on
 screen.
 
+Every faceplate is drawn as SVG, so the units stay sharp at any zoom and the
+repo ships no artwork that is not its own.
+
 The **GTN 650Xi** is a different interface to the same machinery. It has only
 two hard keys (HOME and Direct-To), a dual knob and a volume knob — everything
 else is on the glass, so its renderer draws its own controls and tags them with
@@ -164,29 +167,6 @@ another box is that data plus a faceplate drawing.
 The screen layout is authored once in the 430's 240-wide space and scaled to
 the unit, so columns keep their proportions while the 530's extra pixels turn
 into extra rows: more flight plan legs, a longer nearest list, a taller map.
-
-## Faceplate styles
-
-The **Modern / Original** toggle above the unit switches between the vector
-redraw and Garmin's own trainer bitmap. Both are laid out in the same
-coordinate space, so the buttons, knobs and screen line up identically either
-way. Your choice is remembered.
-
-The original bitmap is Garmin's artwork and is not distributed here, so the
-Original button is disabled out of the box. If you have the 400W/500W trainer
-installer, extract it from your own copy:
-
-```
-7z x 400W_500WSeriesTrainer-WAAS_300.exe -osfx
-unshield -d trainer x sfx/Trainer/data1.cab
-7z x -obezel trainer/Program_Executable_Files/G530SIM.exe
-sips -s format png bezel/.rsrc/BITMAP/142.bmp --out assets/bezel-430.png
-sips -s format png bezel/.rsrc/BITMAP/132.bmp --out assets/bezel-530.png
-```
-
-Reload and the Original skin turns on. (`brew install p7zip unshield` first;
-`sips` is built into macOS.) Bitmap 144 is the GPS 400 and 145 the GNC 420, if
-you ever want those too.
 
 ## Name
 
