@@ -16,15 +16,31 @@ const unitToggle = document.getElementById('unit-toggle');
 
 // --- data ------------------------------------------------------------------
 
+function loadJson(url, fallback) {
+  return fetch(url)
+    .then((r) => {
+      if (!r.ok) throw new Error(`${url}: ${r.status}`);
+      return r.json();
+    })
+    .catch((err) => {
+      console.error(err);
+      return fallback;
+    });
+}
+
 const [raw, procIndex, basemap] = await Promise.all([
-  fetch('./data/navdata.json').then((r) => r.json()),
-  fetch('./data/proc/index.json')
-    .then((r) => r.json())
-    .catch(() => ({ airports: [] })),
-  fetch('./data/basemap.json')
-    .then((r) => r.json())
-    .catch(() => null),
+  loadJson('./data/navdata.json', null),
+  loadJson('./data/proc/index.json', { airports: [] }),
+  loadJson('./data/basemap.json', null),
 ]);
+
+// Without the waypoint database there is no trainer; say so rather than
+// leaving the page stuck on "loading…" with nothing in the console.
+if (!raw?.waypoints?.length) {
+  statusEl.textContent =
+    'Could not load data/navdata.json — serve the project with `npm start` and reload.';
+  throw new Error('navdata unavailable');
+}
 
 setBasemap(basemap);
 

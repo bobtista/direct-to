@@ -80,7 +80,7 @@ export class GNS {
     this.nrstIndex = 0;
 
     // Touchscreen units navigate by app rather than by page group.
-    this.gtn = { page: 'HOME', dto: null };
+    this.gtn = { page: 'HOME', dto: null, scroll: 0 };
   }
 
   get isTouch() {
@@ -99,8 +99,13 @@ export class GNS {
     return this.legIndex > 0 ? this.flightPlan[this.legIndex - 1] ?? null : null;
   }
 
-  /** Destination airport, which is what PROC offers approaches for. */
+  /**
+   * Destination airport, which is what PROC offers approaches for. A loaded
+   * approach replaces the airport at the end of the plan with its own fixes,
+   * so the airport is remembered rather than re-derived from the tail.
+   */
   get destination() {
+    if (this.approach?.apt) return this.approach.apt;
     const last = this.flightPlan[this.flightPlan.length - 1];
     if (last && this.db.exact(last.id)?.k === 'APT') return last.id;
     if (this.dtoTarget && this.db.exact(this.dtoTarget.id)?.k === 'APT') return this.dtoTarget.id;
@@ -131,6 +136,15 @@ export class GNS {
     }
     if (this.message) {
       this.message = null;
+      return;
+    }
+
+    if (target === 'LIST_UP') {
+      this.gtn.scroll = Math.max(0, this.gtn.scroll - 1);
+      return;
+    }
+    if (target === 'LIST_DOWN') {
+      this.gtn.scroll += 1;
       return;
     }
 
@@ -182,12 +196,14 @@ export class GNS {
       const p = this.proc;
       if (!p) return;
       p.sel = Number(target.slice(7));
+      this.gtn.scroll = 0;
       return this.#procEnter();
     }
     if (target.startsWith('PROC_T_')) {
       const p = this.proc;
       if (!p) return;
       p.tsel = Number(target.slice(7));
+      this.gtn.scroll = 0;
       return this.#procEnter();
     }
     if (target === 'PROC_LOAD' || target === 'PROC_ACTIVATE') {
@@ -209,6 +225,7 @@ export class GNS {
   }
 
   #openApp(app) {
+    this.gtn.scroll = 0;
     if (app === 'HOME') {
       this.gtn.page = 'HOME';
       return;
@@ -255,7 +272,7 @@ export class GNS {
   }
 
   #largeRight(dir) {
-    if (this.mode === 'DTO') return this.dto.entry.move(dir);
+    if (this.mode === 'DTO') return this.#dtoEdit((e) => e.move(dir));
     if (this.mode === 'MENU') return;
     if (this.mode === 'PROC') return this.#procMove(dir);
     if (this.mode === 'FPL') return this.#fplMoveCursor(dir);
@@ -276,7 +293,7 @@ export class GNS {
   }
 
   #smallRight(dir) {
-    if (this.mode === 'DTO') return this.dto.entry.spin(dir);
+    if (this.mode === 'DTO') return this.#dtoEdit((e) => e.spin(dir));
     if (this.mode === 'MENU') {
       const n = this.menu.items.length;
       this.menu.sel = (this.menu.sel + dir + n) % n;
@@ -406,6 +423,12 @@ export class GNS {
     };
   }
 
+  /** Touching the entry after ENT drops back to spelling, as the unit does. */
+  #dtoEdit(fn) {
+    this.dto.phase = 'IDENT';
+    fn(this.dto.entry);
+  }
+
   #dtoEnter() {
     if (this.dto.phase === 'IDENT') {
       const wp = this.dto.entry.resolve();
@@ -509,8 +532,14 @@ export class GNS {
     this.mode = 'PROC';
     this.menu = null;
     const cached = this.procs.cached(apt);
-    if (cached) {
+    // An airport whose file failed to load caches an empty array, and [] is
+    // truthy — treat it as "no procedures" rather than an empty list to walk.
+    if (cached?.length) {
       this.proc = { apt, state: 'APPROACHES', list: cached, sel: 0 };
+    } else if (cached) {
+      this.mode = 'PAGE';
+      this.proc = null;
+      this.message = 'NO PROCEDURES';
     } else {
       this.proc = { apt, state: 'LOADING', list: [], sel: 0 };
       this.onLoadProcs?.(apt);
@@ -584,13 +613,25 @@ export class GNS {
     // Drop any previously loaded approach, then the destination airport itself
     // — the approach that lands there replaces it as the end of the plan.
     this.flightPlan = this.flightPlan.filter((w) => !w.proc && w.id !== airport);
+    const firstLeg = this.flightPlan.length;
     this.flightPlan.push(...legs);
-    this.approach = { id: approach.id, name: approach.name, transition };
+    this.approach = { id: approach.id, name: approach.name, transition, apt: airport };
     if (activate) {
       this.cancelDirectTo();
-      this.legIndex = Math.max(1, this.flightPlan.length - legs.length);
+      // Go active on the first fix of the approach, which is the transition the
+      // pilot just chose — not the one after it.
+      this.legIndex = Math.max(0, firstLeg);
       this.obs = false;
     }
+    // Rewriting the plan can leave the active leg pointing past the end.
+    this.#clampLegIndex();
+  }
+
+  /** Keep the active leg inside the flight plan after any edit. */
+  #clampLegIndex() {
+    if (this.legIndex < 0) return;
+    if (!this.flightPlan.length) this.legIndex = -1;
+    else this.legIndex = Math.min(this.legIndex, this.flightPlan.length - 1);
   }
 
   // --- menus ---------------------------------------------------------------
@@ -626,13 +667,12 @@ export class GNS {
         return this.activateFlightPlan();
       case 'Auto Zoom On?':
         this.autoZoom = true;
-    // CLR on the map page steps through detail levels (Pilot's Guide: "press
-    // the CLR key momentarily to select the desired amount of map detail").
-    this.declutter = 0;
         return;
       case 'Auto Zoom Off?':
-        this.autoZoom = false;
+        // Sample the scale on screen before clearing the flag, or
+        // effectiveRange just hands back the stale stored value.
         this.mapRange = this.effectiveRange;
+        this.autoZoom = false;
         return;
       case 'Delete Flight Plan?':
         this.flightPlan = [];
@@ -699,7 +739,10 @@ export class GNS {
       if (this.cursor && this.flightPlan[this.fplCursorRow]) {
         this.flightPlan.splice(this.fplCursorRow, 1);
         this.fplCursorRow = Math.min(this.flightPlan.length, this.fplCursorRow);
-        if (this.legIndex >= this.flightPlan.length) this.legIndex = this.flightPlan.length - 1;
+        // Removing a row at or before the active leg shifts every later index
+        // down; without this the unit silently navigates to the wrong fix.
+        if (this.fplCursorRow <= this.legIndex) this.legIndex -= 1;
+        this.#clampLegIndex();
       }
       return;
     }
@@ -855,6 +898,7 @@ export class GNS {
       px: { ...this.unit.px },
       gtn: {
         page: this.gtn.page,
+        scroll: this.gtn.scroll,
         dto: this.gtn.dto
           ? { ident: this.gtn.dto.value, match: this.gtn.dto.match }
           : { ident: '', match: null },

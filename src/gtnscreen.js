@@ -239,7 +239,12 @@ function flightPlan(v) {
   }
 
   const perPage = Math.floor((H - y0 - 26) / rowH);
-  rows.slice(0, perPage).forEach((row, i) => {
+  const first = Math.min(Math.max(0, v.gtn.scroll ?? 0), Math.max(0, rows.length - perPage));
+  if (rows.length > perPage) {
+    out.push(btn('LIST_UP', W - 46, y0 + 20, 36, 52, '▲', { cls: 'gaux', size: 16 }));
+    out.push(btn('LIST_DOWN', W - 46, y0 + 78, 36, 52, '▼', { cls: 'gaux', size: 16 }));
+  }
+  rows.slice(first, first + perPage).forEach((row, i) => {
     const y = y0 + 22 + i * rowH;
     const c = row.active ? '#ff4cf0' : '#35ff35';
     out.push(panel(12, y - 4, W - 24, rowH - 6, 'growrow'));
@@ -254,19 +259,45 @@ function flightPlan(v) {
 
 // --- simple pages -----------------------------------------------------------
 
-function listPage(v, title, rows, touchPrefix, empty) {
+function listPage(v, title, rows, touchPrefix, empty, scroll = 0) {
   const out = [topBar(v, title)];
   if (!rows.length) {
     out.push(txt(empty, W / 2, 160, { size: 20, a: 'c', w: W, color: '#ffd33d' }));
     return out.join('');
   }
   const rowH = 40;
-  const perPage = Math.floor((H - BAR - 16) / rowH);
-  rows.slice(0, perPage).forEach((r, i) => {
+  const listW = W - 24;
+  const paged = rows.length > Math.floor((H - BAR - 16) / rowH);
+  // Leave room for the scroll buttons only when there is something to scroll.
+  const perPage = Math.floor((H - BAR - 16) / rowH) - (paged ? 0 : 0);
+  const maxScroll = Math.max(0, rows.length - perPage);
+  const first = Math.min(Math.max(0, scroll), maxScroll);
+
+  rows.slice(first, first + perPage).forEach((r, i) => {
     const y = BAR + 8 + i * rowH;
-    out.push(btn(`${touchPrefix}${r.key}`, 12, y, W - 24, rowH - 6, r.label, { cls: 'grow', size: 19 }));
-    if (r.right) out.push(txt(r.right, W - 34, y + 8, { size: 17, a: 'r', w: 260, color: '#35ff35', bold: true }));
+    const w = paged ? listW - 56 : listW;
+    out.push(btn(`${touchPrefix}${r.key}`, 12, y, w, rowH - 6, r.label, { cls: 'grow', size: 19 }));
+    // Inside the button, so the whole row stays tappable.
+    if (r.right) {
+      out.push(
+        `<span class="gt growright" style="left:${w - 244}px;top:${y + 9}px;width:236px">${esc(r.right)}</span>`
+      );
+    }
   });
+
+  if (paged) {
+    const bx = W - 50;
+    out.push(btn('LIST_UP', bx, BAR + 8, 40, 60, '▲', { cls: 'gaux', size: 18 }));
+    out.push(btn('LIST_DOWN', bx, BAR + 76, 40, 60, '▼', { cls: 'gaux', size: 18 }));
+    out.push(
+      txt(`${first + 1}-${Math.min(rows.length, first + perPage)} of ${rows.length}`, bx + 20, H - 26, {
+        size: 12,
+        a: 'c',
+        w: 90,
+        color: '#8fa3bd',
+      })
+    );
+  }
   return out.join('');
 }
 
@@ -296,7 +327,8 @@ export function renderGtnScreen(v) {
         right: `${deg3(r.brg)}   ${r.dis.toFixed(1)} nm`,
       })),
       'NRST_',
-      'No airports within 200 nm'
+      'No airports within 200 nm',
+      v.gtn.scroll
     );
   } else if (page === 'PROC') {
     const p = v.proc;
@@ -309,7 +341,8 @@ export function renderGtnScreen(v) {
         `Approaches — ${p.apt}`,
         p.approaches.map((n, i) => ({ key: i, label: n })),
         'PROC_A_',
-        'No published approaches'
+        'No published approaches',
+        v.gtn.scroll
       );
     } else if (p.state === 'TRANSITIONS') {
       body = listPage(
@@ -317,7 +350,8 @@ export function renderGtnScreen(v) {
         `${p.approachName} — Transition`,
         p.transitions.map((n, i) => ({ key: i, label: n })),
         'PROC_T_',
-        'No transitions'
+        'No transitions',
+        v.gtn.scroll
       );
     } else {
       const out = [topBar(v, 'Load Approach')];

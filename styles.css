@@ -34,15 +34,6 @@ main {
   flex-wrap: wrap;
 }
 
-/* The 530 is much taller than the 430. Constrain the *width* so the aspect
-   ratio still governs the box: capping height instead would letterbox the SVG
-   while the percentage-positioned screen and hit regions kept using the full
-   box, and everything would drift apart. */
-#unit {
-  width: min(100%, calc(76vh * var(--bw) / var(--bh)));
-  margin-inline: auto;
-}
-
 #brand h1 {
   margin: 0;
   font-size: 20px;
@@ -92,9 +83,14 @@ main {
 
 /* --- the unit ----------------------------------------------------------- */
 
+/* The 530 is much taller than the 430. Constrain the *width* so the aspect
+   ratio still governs the box: capping height instead would letterbox the SVG
+   while the percentage-positioned screen and hit regions kept using the full
+   box, and everything would drift apart. */
 #unit {
   position: relative;
-  width: 100%;
+  width: min(100%, calc(76vh * var(--bw) / var(--bh)));
+  margin-inline: auto;
   aspect-ratio: var(--bw) / var(--bh);
   user-select: none;
   filter: drop-shadow(0 18px 40px rgb(0 0 0 / 0.55));
@@ -373,6 +369,15 @@ kbd {
   position: absolute;
   white-space: pre;
   line-height: 1.15;
+  /* Labels sit over touch targets; never let them swallow a tap. */
+  pointer-events: none;
+}
+
+#grid .growright {
+  font-size: 17px;
+  color: #35ff35;
+  font-weight: 700;
+  text-align: right;
 }
 
 #grid .gpanel {

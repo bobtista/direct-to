@@ -1,4 +1,4 @@
-// Vector redraw of the GTN 650Xi faceplate.
+// Vector redraw of the 650Xi-style touchscreen faceplate.
 //
 // Proportions are measured from Garmin's own bezel diagram in the GTN Xi
 // Series Pilot's Guide (190-02327-03 Rev G, page 1-5), scaled into a 500x213
@@ -70,7 +70,7 @@ export function bezel650XiSvg() {
   const glass = `
     <rect x="30" y="11" width="428" height="192" rx="5" fill="#0a0a0b"/>
     <rect x="${S.x - 2}" y="${S.y - 2}" width="${S.w + 4}" height="${S.h + 4}" rx="2" fill="#000"/>
-    <text class="gbrand" x="${S.x + S.w / 2}" y="17" font-size="7" text-anchor="middle">GARMIN</text>
+    <text class="gbrand" x="${S.x + S.w / 2}" y="17" font-size="6.4" text-anchor="middle">DIRECT-TO</text>
     <rect x="${S.x + 6}" y="${H - 22}" width="${S.w - 12}" height="7" rx="3.5" fill="#2f3134" opacity="0.85"/>`;
 
   const left = `
@@ -121,7 +121,7 @@ export function bezel650XiSvg() {
     </g>`;
 
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img"
-       aria-label="Garmin GTN 650Xi faceplate">
+       aria-label="650Xi faceplate">
   ${defs}
   <rect x="0" y="0" width="${W}" height="${H}" rx="5" fill="url(#gBody)"/>
   <rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" rx="4.5" fill="none"

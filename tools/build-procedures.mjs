@@ -87,35 +87,48 @@ for (const l of lines) {
   if (l[0] !== 'S' || l.length < 100) continue;
   const sec = l[4];
   // ARINC 424 puts the subsection code in column 6 for enroute (E) and navaid
-  // (D) records, but column 13 for airport (P) and heliport (H) records.
-  const sub = sec === 'P' || sec === 'H' ? l[12] : l[5];
+  // (D) records, but column 13 for airport (P) records — except the airport
+  // terminal NDB (P/N), which is a navaid record and keeps it in column 6.
+  const sub = sec === 'P' || sec === 'H' ? (l[5] === 'N' ? 'N' : l[12]) : l[5];
+
+  // Identifiers are only unique within an ICAO region: "SJ" is an NDB in both
+  // Texas (K4) and Puerto Rico (TJ). Every fix is registered under its region
+  // as well as bare, and legs look it up by the region they name.
+  const lat = dms(l.slice(32, 41), 2);
+  const lon = dms(l.slice(41, 51), 3);
 
   if (sec === 'P' && sub === 'C') {
     // Terminal waypoint, scoped to its airport.
     const apt = l.slice(6, 10).trim();
     const id = l.slice(13, 18).trim();
-    addFix(`${apt}/${id}`, dms(l.slice(32, 41), 2), dms(l.slice(41, 51), 3));
-    addFix(id, dms(l.slice(32, 41), 2), dms(l.slice(41, 51), 3));
+    const region = l.slice(19, 21).trim();
+    addFix(`${apt}/${id}`, lat, lon);
+    if (region) addFix(`${region}/${id}`, lat, lon);
+    addFix(id, lat, lon);
   } else if (sec === 'E' && sub === 'A') {
     // Enroute waypoint.
     const id = l.slice(13, 18).trim();
-    addFix(id, dms(l.slice(32, 41), 2), dms(l.slice(41, 51), 3));
-  } else if (sec === 'D' && (sub === ' ' || sub === 'B')) {
-    // VHF navaid / NDB.
+    const region = l.slice(19, 21).trim();
+    if (region) addFix(`${region}/${id}`, lat, lon);
+    addFix(id, lat, lon);
+  } else if ((sec === 'D' && (sub === ' ' || sub === 'B')) || (sec === 'P' && sub === 'N')) {
+    // VHF navaid, enroute NDB, or an airport's terminal NDB.
     const id = l.slice(13, 17).trim();
-    addFix(id, dms(l.slice(32, 41), 2), dms(l.slice(41, 51), 3));
-  } else if (sec === 'P' && sub === 'N') {
-    const id = l.slice(13, 17).trim();
-    addFix(id, dms(l.slice(32, 41), 2), dms(l.slice(41, 51), 3));
+    const region = l.slice(19, 21).trim();
+    if (sec === 'P') {
+      const apt = l.slice(6, 10).trim();
+      if (apt) addFix(`${apt}/${id}`, lat, lon);
+    }
+    if (region) addFix(`${region}/${id}`, lat, lon);
+    addFix(id, lat, lon);
   } else if (sec === 'P' && sub === 'G') {
     // Runway threshold, referenced by approaches as "RW17".
     const apt = l.slice(6, 10).trim();
     const id = l.slice(13, 18).trim();
-    addFix(`${apt}/${id}`, dms(l.slice(32, 41), 2), dms(l.slice(41, 51), 3));
+    addFix(`${apt}/${id}`, lat, lon);
   } else if (sec === 'P' && sub === 'A') {
     // Airport reference point.
-    const apt = l.slice(6, 10).trim();
-    addFix(apt, dms(l.slice(32, 41), 2), dms(l.slice(41, 51), 3));
+    addFix(l.slice(6, 10).trim(), lat, lon);
   }
 }
 
@@ -144,7 +157,12 @@ for (const l of lines) {
   if (!apt || !procId) continue;
 
   const role = ROLE[desc[3]] ?? (desc[2] === 'S' ? 'SDF' : '');
-  const pos = fixes.get(`${apt}/${fixId}`) ?? fixes.get(fixId) ?? null;
+  const fixRegion = l.slice(34, 36).trim();
+  const pos =
+    fixes.get(`${apt}/${fixId}`) ??
+    (fixRegion ? fixes.get(`${fixRegion}/${fixId}`) : null) ??
+    fixes.get(fixId) ??
+    null;
 
   const leg = {
     seq,

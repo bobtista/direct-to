@@ -15,6 +15,13 @@ import { createInterface } from 'node:readline';
 
 const [, , coastPath, lakesPath, airspacePath] = process.argv;
 
+if (!coastPath && !lakesPath && !airspacePath) {
+  console.error(
+    'usage: node tools/build-basemap.mjs <ne_coastline.json> <ne_lakes.json> <faa_class_airspace.json>'
+  );
+  process.exit(1);
+}
+
 // Continental US, Alaska and Hawaii.
 const BOUNDS = { minLon: -180, minLat: 15, maxLon: -60, maxLat: 72 };
 
@@ -173,6 +180,13 @@ const payload = {
   lakes,
   airspace,
 };
+
+// Never overwrite a good basemap with an empty one: the inputs are large
+// downloads that are easy to omit, and the failure would be a silently blank map.
+if (!coast.length && !lakes.length && !airspace.length) {
+  console.error('refusing to write an empty basemap — no features parsed from the inputs given');
+  process.exit(1);
+}
 
 writeFileSync(new URL('../data/basemap.json', import.meta.url), JSON.stringify(payload));
 

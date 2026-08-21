@@ -114,7 +114,11 @@ function cdi(v) {
       out.push(fill(cx + i * 13 - 1, 19, 3, 3, 'var(--cyn)'));
     }
     // Full-scale deflection is 5 nm en route; clamp to the dot scale.
-    const dots = Math.max(-5, Math.min(5, v.nav.xtk));
+    //
+    // A CDI needle shows where the COURSE is, not where the aircraft is, so it
+    // deflects opposite the cross-track error: right of course puts the needle
+    // left, and you fly toward the needle to correct.
+    const dots = Math.max(-5, Math.min(5, -v.nav.xtk));
     out.push(txt('▼', cx + dots * 13, 6, { size: 13, a: 'c', w: 12, color: 'var(--grn)' }));
     // Cross-track distance, with the side it's off to — tucked under the dots.
     const side = v.nav.xtk >= 0 ? 'R' : 'L';
@@ -639,7 +643,7 @@ export function renderScreen(v) {
           : v.page === 'MAP'
             ? mapPage(v)
             : defaultNav(v);
-    body = under + menu(v);
+    body = under + statusBar(v) + menu(v);
   } else if (v.page === 'DEFAULT_NAV') body = defaultNav(v) + statusBar(v);
   else if (v.page === 'MAP') body = mapPage(v) + statusBar(v);
   else if (v.page === 'NAVCOM')

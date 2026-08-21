@@ -183,7 +183,7 @@ const dtoGlyph = (cx, cy) => `
 
 const shell = (W, H, body) =>
   `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img"
-       aria-label="Garmin faceplate">
+       aria-label="Faceplate">
   ${DEFS}
   <rect x="0" y="0" width="${W}" height="${H}" rx="5" fill="url(#body)"/>
   <rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" rx="4.5" fill="none"
@@ -199,7 +199,7 @@ export function bezel430Svg() {
   const S = { x: 110, y: 26, w: 240, h: 128 };
 
   const left = `
-    <text class="brand" x="9" y="13" font-size="8.6">GARMIN</text>
+    <text class="brand" x="9" y="13" font-size="7.4">DIRECT-TO</text>
 
     ${cardSlot(6, 24, 16, 80)}
     ${cardSlot(54, 24, 16, 80)}
@@ -236,7 +236,7 @@ export function bezel430Svg() {
     <text class="lbl" x="31" y="164" font-size="7.4" text-anchor="middle">C/V</text>`;
 
   const right = `
-    <text class="model" x="${W - 8}" y="13" font-size="7.6" text-anchor="end">GNS 430</text>
+    <text class="model" x="${W - 8}" y="13" font-size="7.6" text-anchor="end">430W</text>
 
     ${key('RNG', 367, 16, 73, 23, `<path d="M377 23l10 0l-5 9z" fill="#e9e9e9"/>
        <text class="lbl" x="403" y="31" font-size="9.5" text-anchor="middle">RNG</text>
@@ -282,7 +282,7 @@ export function bezel530Svg() {
   const S = { x: 83, y: 28, w: 303, h: 225 };
 
   const left = `
-    <text class="brand" x="14" y="17" font-size="9">GARMIN</text>
+    <text class="brand" x="14" y="17" font-size="7.6">DIRECT-TO</text>
 
     ${key('COM_FF', 44, 30, 19, 29, `<text class="lbl" x="53.5" y="43" font-size="8.4" text-anchor="middle">C</text>
        <text class="lbl" x="53.5" y="55" font-size="9.4" text-anchor="middle">&#8597;</text>`)}
@@ -314,7 +314,7 @@ export function bezel530Svg() {
   const right = `
     <circle cx="416" cy="20" r="6" fill="#1a1b1d"/>
     <circle cx="416" cy="20" r="4.4" fill="url(#led)"/>
-    <text class="model" x="${W - 6}" y="23" font-size="7.6" text-anchor="end">GNS 530</text>
+    <text class="model" x="${W - 6}" y="23" font-size="7.6" text-anchor="end">530W</text>
 
     <rect x="412" y="35" width="34" height="65" rx="6" fill="#0d0d0e" opacity="0.7"/>
     ${key('RNG_UP', 414, 38, 30, 25, `<path d="M424 54l10 0l-5 -9z" fill="#e9e9e9"/>`)}

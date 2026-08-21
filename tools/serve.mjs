@@ -29,7 +29,15 @@ const TYPES = {
 
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
-  let rel = decodeURIComponent(url.pathname);
+  let rel;
+  try {
+    // A malformed percent escape ("/%" or "/%zz") throws URIError, and an
+    // uncaught throw in this handler takes the whole server down.
+    rel = decodeURIComponent(url.pathname);
+  } catch {
+    res.writeHead(400, { 'Content-Type': 'text/plain' }).end('Bad request');
+    return;
+  }
   if (rel.endsWith('/')) rel += 'index.html';
 
   // Keep requests inside the project directory.
@@ -56,7 +64,14 @@ const server = createServer((req, res) => {
     'Content-Length': stat.size,
     'Cache-Control': 'no-cache',
   });
-  createReadStream(path).pipe(res);
+
+  // pipe() does not forward stream errors, so an unhandled 'error' would be an
+  // uncaught exception. A file can still fail to open after statSync succeeded
+  // — a rebuild replacing data/proc mid-request, for one.
+  const stream = createReadStream(path);
+  stream.on('error', () => res.destroy());
+  res.on('close', () => stream.destroy());
+  stream.pipe(res);
 });
 
 /** Is something already serving this project on that port? */
@@ -65,7 +80,8 @@ async function alreadyOurs(port) {
     const r = await fetch(`http://localhost:${port}/index.html`, {
       signal: AbortSignal.timeout(1500),
     });
-    return r.ok && (await r.text()).includes('GNS 430W Trainer');
+    // Match the page title, which is the one string that identifies this app.
+    return r.ok && (await r.text()).includes('<title>Direct-To</title>');
   } catch {
     return false;
   }
