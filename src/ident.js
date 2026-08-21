@@ -61,6 +61,39 @@ export class IdentEntry {
     for (let i = this.typed; i < this.length; i++) this.chars[i] = filled[i] ?? ' ';
   }
 
+  /** Type a character, for units with an on-screen keypad rather than knobs. */
+  push(ch) {
+    if (this.typed >= this.length) return;
+    this.chars[this.typed] = ch;
+    this.typed += 1;
+    this.i = Math.min(this.length - 1, this.typed);
+    this.#refill();
+  }
+
+  backspace() {
+    if (this.typed === 0) return;
+    this.typed -= 1;
+    this.chars[this.typed] = ' ';
+    this.i = this.typed;
+    this.#refill();
+  }
+
+  clear() {
+    this.chars = Array(this.length).fill(' ');
+    this.typed = 0;
+    this.i = 0;
+    this.match = null;
+  }
+
+  /** Spell'N'Find over whatever has been typed so far. */
+  #refill() {
+    const prefix = this.chars.slice(0, this.typed).join('').trimEnd();
+    const match = this.db.firstMatch(prefix);
+    this.match = match;
+    const filled = (match ? match.id : prefix).padEnd(this.length, ' ');
+    for (let i = this.typed; i < this.length; i++) this.chars[i] = filled[i] ?? ' ';
+  }
+
   /** The waypoint this entry resolves to, or null if it isn't in the database. */
   resolve() {
     return this.db.exact(this.value);

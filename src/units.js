@@ -9,6 +9,7 @@
 // faceplate drawing.
 
 import { bezel430Svg, bezel530Svg } from './bezelart.js';
+import { bezel650XiSvg } from './bezelart-gtn.js';
 
 /** @typedef {{id:string, x:number, y:number, w:number, h:number, title:string}} Region */
 
@@ -99,6 +100,26 @@ const REGIONS_530 = [
   { id: 'PROC', x: 336, y: 275, w: 46, h: 21, title: 'PROC' },
 ];
 
+// --- GTN 650Xi (500x213 faceplate, 840x372 touchscreen) --------------------
+//
+// Almost every control is on the glass. The faceplate has only these.
+
+/** @type {Region[]} */
+const REGIONS_650XI = [
+  { id: 'COM_VOL_CCW', x: 12, y: 16, w: 15, h: 30, title: 'Volume down' },
+  { id: 'COM_VOL_CW', x: 27, y: 16, w: 15, h: 30, title: 'Volume up' },
+  { id: 'COM_SQ', x: 19, y: 23, w: 16, h: 16, title: 'Push: squelch' },
+
+  { id: 'HOME', x: 455, y: 68, w: 38, h: 23, title: 'HOME (hold for Map)' },
+  { id: 'DTO', x: 455, y: 108, w: 38, h: 23, title: 'Direct-To' },
+
+  { id: 'RIGHT_LARGE_CCW', x: 450, y: 153, w: 24, h: 17, title: 'Large knob CCW' },
+  { id: 'RIGHT_LARGE_CW', x: 474, y: 153, w: 24, h: 17, title: 'Large knob CW' },
+  { id: 'RIGHT_SMALL_CCW', x: 452, y: 170, w: 22, h: 15, title: 'Small knob CCW' },
+  { id: 'RIGHT_SMALL_CW', x: 474, y: 170, w: 22, h: 15, title: 'Small knob CW' },
+  { id: 'RIGHT_SMALL_PUSH', x: 458, y: 186, w: 32, h: 16, title: 'Push knob' },
+];
+
 export const UNITS = {
   GNS430: {
     id: 'GNS430',
@@ -109,6 +130,7 @@ export const UNITS = {
     screen: { x: 110, y: 26, w: 240, h: 128 },
     // The unit's real display resolution, which the screen grid is drawn in.
     px: { w: 240, h: 128 },
+    family: 'GNS',
     regions: REGIONS_430,
     softKeys: ['CDI', 'OBS', 'MSG', 'FPL', 'PROC'],
     hasVloc: true,
@@ -123,11 +145,30 @@ export const UNITS = {
     bezel: { w: 464, h: 338 },
     screen: { x: 83, y: 28, w: 303, h: 225 },
     px: { w: 320, h: 234 },
+    family: 'GNS',
     regions: REGIONS_530,
     softKeys: ['CDI', 'OBS', 'MSG', 'FPL', 'VNAV', 'PROC'],
     hasVloc: true,
     art: bezel530Svg,
     bitmap: 'assets/bezel-530.png',
+  },
+  GTN650XI: {
+    id: 'GTN650XI',
+    name: 'GTN 650Xi',
+    short: '650Xi',
+    family: 'GTN',
+    bezel: { w: 500, h: 213 },
+    screen: { x: 44, y: 19, w: 402, h: 176 },
+    // 4.9" display at 187 DPI; the Xi series is 1.39x the original GTN 650's
+    // 600x266, matching the published 834x986 of the 750Xi.
+    px: { w: 840, h: 372 },
+    regions: REGIONS_650XI,
+    softKeys: [],
+    hasVloc: true,
+    art: bezel650XiSvg,
+    // Nothing to extract: a touchscreen unit has no faceplate artwork worth
+    // lifting, so this drawing is entirely our own.
+    bitmap: null,
   },
 };
 

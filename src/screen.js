@@ -343,155 +343,70 @@ const mapBox = () => ({ x: 0, y: 10, w: 184, h: H - 22 });
 const MAP_DATA_X = 186;
 let MAP = { x: 0, y: 10, w: 184, h: 106 };
 
-// Basemap geometry, supplied by app.js once loaded. Kept out of the state
-// machine because it is presentation data, not device state.
-let basemap = { coast: [], lakes: [], airspace: [] };
-export const setBasemap = (data) => {
-  basemap = data ?? basemap;
-};
-
-/** Track-up projection: nautical miles from the aircraft, rotated to heading. */
-function projector(v) {
-  const cx = MAP.x + MAP.w / 2;
-  const cy = MAP.y + MAP.h / 2;
-  const ppnm = MAP.h / 2 / v.mapRange;
-  const hdg = ((v.nav?.trk ?? 0) * Math.PI) / 180;
-  const cosLat = Math.max(0.05, Math.cos((v.pos.lat * Math.PI) / 180));
-  const sinH = Math.sin(hdg);
-  const cosH = Math.cos(hdg);
-  return (lon, lat) => {
-    const north = (lat - v.pos.lat) * 60;
-    const east = (lon - v.pos.lon) * 60 * cosLat;
-    // Rotate so the current track points up the screen.
-    return [cx + (east * cosH - north * sinH) * ppnm, cy - (east * sinH + north * cosH) * ppnm];
-  };
-}
-
-/** Lat/lon window that can reach the map, with the track-up rotation allowed for. */
-function visibleBox(v) {
-  const halfWidthNm = (MAP.w / 2 / (MAP.h / 2)) * v.mapRange;
-  const radius = Math.hypot(halfWidthNm, v.mapRange) * 1.05;
-  const dLat = radius / 60;
-  const dLon = radius / 60 / Math.max(0.05, Math.cos((v.pos.lat * Math.PI) / 180));
-  return [v.pos.lon - dLon, v.pos.lat - dLat, v.pos.lon + dLon, v.pos.lat + dLat];
-}
-
-const hits = (b, box) => !(b[2] < box[0] || b[0] > box[2] || b[3] < box[1] || b[1] > box[3]);
-
-/** Turn a flat [lon,lat,...] run into an SVG path. */
-function pathFor(flat, to) {
-  let d = '';
-  for (let i = 0; i < flat.length; i += 2) {
-    const [x, y] = to(flat[i], flat[i + 1]);
-    d += `${i ? 'L' : 'M'}${Math.round(x * 10) / 10} ${Math.round(y * 10) / 10}`;
-  }
-  return d;
-}
-
-/** Collect a layer's visible features into one path string. */
-function layerPath(rows, box, to, budget) {
-  let d = '';
-  let used = 0;
-  for (const row of rows) {
-    if (used > budget) break;
-    if (!hits(row.b, box)) continue;
-    d += pathFor(row.p, to);
-    used += row.p.length / 2;
-  }
-  return d;
-}
-
 function mapPage(v) {
   const out = [];
   const cx = MAP.x + MAP.w / 2;
   const cy = MAP.y + MAP.h / 2;
-  const to = projector(v);
-  const toPt = (p) => to(p.lon, p.lat);
-  const ppnm = MAP.h / 2 / v.mapRange;
-  const box = visibleBox(v);
-  const detail = v.declutter ?? 0;
 
   out.push(fill(0, 0, W, 10, 'var(--panel)'));
   out.push(txt('MAP', 4, 1, { size: 8, color: '#fff', bold: true }));
   out.push(txt('TRK UP', 62, 1, { size: 7, color: 'var(--cyn)' }));
 
-  // Geometry goes in one SVG: thousands of coastline segments as positioned
-  // elements would crawl.
-  const g = [];
-
-  if (detail < 2) {
-    const coast = layerPath(basemap.coast, box, to, 12000);
-    if (coast) g.push(`<path class="m-coast" d="${coast}"/>`);
-    const lakes = layerPath(basemap.lakes, box, to, 8000);
-    if (lakes) g.push(`<path class="m-lake" d="${lakes}"/>`);
-  }
-
-  if (detail < 1) {
-    for (const cls of ['E', 'D', 'C', 'B']) {
-      const rows = basemap.airspace.filter((a) => a.c === cls);
-      const d = layerPath(rows, box, to, 6000);
-      if (d) g.push(`<path class="m-as m-as-${cls}" d="${d}"/>`);
-    }
-  }
-
-  // Range ring at half the scale.
-  const ringR = (ppnm * v.mapRange) / 2;
-  g.push(`<circle class="m-ring" cx="${cx}" cy="${cy}" r="${ringR}"/>`);
-
-  const legPath = (a, b) => {
-    const [x1, y1] = toPt(a);
-    const [x2, y2] = toPt(b);
-    if (![x1, y1, x2, y2].every(Number.isFinite)) return '';
-    return `M${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}`;
+  const opts = {
+    pos: v.pos,
+    trk: v.nav?.trk ?? 0,
+    range: v.mapRange,
+    box: MAP,
+    plan: v.mapPlan ?? [],
+    direct: v.mapDirect,
+    declutter: v.declutter ?? 0,
   };
-
-  const rows = v.mapPlan ?? [];
-  let inactive = '';
-  let active = '';
-  for (let i = 1; i < rows.length; i++) {
-    (rows[i].active ? (active += legPath(rows[i - 1], rows[i])) : (inactive += legPath(rows[i - 1], rows[i])));
-  }
-  if (v.mapDirect) active += legPath(v.mapDirect.from, v.mapDirect.to);
-  if (inactive) g.push(`<path class="m-leg" d="${inactive}"/>`);
-  if (active) g.push(`<path class="m-leg act" d="${active}"/>`);
 
   out.push(
     `<svg class="mapsvg" viewBox="0 0 ${W} ${H}" style="left:0;top:0;width:${u(W)}px;height:${u(H)}px">` +
       `<clipPath id="mapclip"><rect x="${MAP.x}" y="${MAP.y}" width="${MAP.w}" height="${MAP.h}"/></clipPath>` +
-      `<g clip-path="url(#mapclip)">${g.join('')}</g></svg>`
+      `<g clip-path="url(#mapclip)">${mapLayers(opts)}</g></svg>`
   );
 
   // Waypoint symbols and labels stay as text so they match the rest of the UI.
+  const to = (p) => {
+    const ppnm = MAP.h / 2 / v.mapRange;
+    const hdg = ((v.nav?.trk ?? 0) * Math.PI) / 180;
+    const cosLat = Math.max(0.05, Math.cos((v.pos.lat * Math.PI) / 180));
+    const north = (p.lat - v.pos.lat) * 60;
+    const east = (p.lon - v.pos.lon) * 60 * cosLat;
+    return [
+      cx + (east * Math.cos(hdg) - north * Math.sin(hdg)) * ppnm,
+      cy - (east * Math.sin(hdg) + north * Math.cos(hdg)) * ppnm,
+    ];
+  };
   const symbol = (p, label, isActive) => {
-    const [x, y] = toPt(p);
+    const [x, y] = to(p);
     if (x < MAP.x - 10 || x > MAP.x + MAP.w + 10 || y < MAP.y - 10 || y > MAP.y + MAP.h + 10) return;
     const c = isActive ? 'var(--mag)' : 'var(--grn)';
     out.push(fill(x - 1.5, y - 1.5, 3, 3, c));
     out.push(txt(label, x + 4, y - 4, { size: 7, color: c, bold: true }));
   };
-  for (const wp of rows) symbol(wp, wp.id, wp.active);
+  for (const wp of v.mapPlan ?? []) symbol(wp, wp.id, wp.active);
   if (v.mapDirect) symbol(v.mapDirect.to, v.mapDirect.to.id, true);
 
-  // Own-ship, always centred and pointing up.
   out.push(txt('▲', cx, cy - 6, { size: 11, a: 'c', w: 12, color: '#fff' }));
 
-  // Range readout, with an auto-zoom flag so the scale changing is explicable.
   out.push(
     txt(`${v.mapRange} nm`, MAP.w - 4, MAP.y + MAP.h - 10, { size: 8, a: 'r', w: 40, color: '#fff', bold: true })
   );
   if (v.autoZoom) {
     out.push(txt('AUTO', MAP.w - 4, MAP.y + MAP.h - 20, { size: 6.5, a: 'r', w: 40, color: 'var(--cyn)' }));
   }
-  if (detail > 0) {
+  if ((v.declutter ?? 0) > 0) {
     out.push(
-      txt(detail === 1 ? 'DECLUTTER-1' : 'DECLUTTER-2', 4, MAP.y + MAP.h - 10, {
+      txt(v.declutter === 1 ? 'DECLUTTER-1' : 'DECLUTTER-2', 4, MAP.y + MAP.h - 10, {
         size: 6.5,
         color: 'var(--amb)',
       })
     );
   }
 
-  // Data fields down the right-hand side: WPT, DTK, DIS, GS.
   const fields = [
     ['WPT', v.nav?.to ?? '- - -'],
     ['DTK', v.nav ? deg3(v.nav.dtk) : '---°'],

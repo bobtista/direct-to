@@ -1,7 +1,7 @@
 # Direct-To
 
-A browser-based GNS 430W / 530W practice trainer for drilling knob and key work
-on the ground — Direct-To, flight plans, nearest airports, and instrument
+A browser-based Garmin avionics practice trainer for drilling knob, key and
+touch work on the ground — Direct-To, flight plans, nearest airports, and instrument
 approaches flown off real FAA procedure data.
 
 ## Running it
@@ -22,7 +22,7 @@ moves to the next free one. `npm stop` shuts it down.
 npm test
 ```
 
-runs 41 tests against the state machine, procedures and basemap data. No browser needed.
+runs 51 tests against the state machine, procedures and basemap data. No browser needed.
 
 ## Practising a Direct-To
 
@@ -116,11 +116,14 @@ worth having in muscle memory.
 | File | Role |
 | --- | --- |
 | `src/units.js` | Unit profiles: faceplate size, display box, resolution, hit regions |
-| `src/bezelart.js` | The faceplates, drawn as SVG — sharp at any zoom |
+| `src/bezelart.js` | The GNS faceplates, drawn as SVG — sharp at any zoom |
+| `src/bezelart-gtn.js` | The GTN faceplate |
 | `src/bezel.js` | What each control means, plus keyboard bindings |
 | `src/gns.js` | The state machine. No DOM access, so it runs under plain node |
 | `src/ident.js` | The Spell'N'Find entry field shared by Direct-To, flight plan and WPT |
-| `src/screen.js` | Renders a view onto the unit's real 240×128 pixel grid |
+| `src/screen.js` | Renders the GNS units onto their real pixel grid |
+| `src/gtnscreen.js` | Renders the GTN touchscreen, controls included |
+| `src/mapdraw.js` | Moving-map geometry, shared by both renderers |
 | `src/navdata.js` | Waypoint lookup, nearest search, great-circle maths |
 | `src/procedures.js` | Approach loading and flattening into flight plan legs |
 | `tools/build-basemap.mjs` | Clips, simplifies and chunks the map geometry |
@@ -134,17 +137,25 @@ photographs of a real unit.
 
 ## Units
 
-The **430 / 530** toggle above the faceplate switches boxes. They are the same
-firmware in different housings, so the logic, pages and knobs are identical;
-what changes is the hardware and the room on screen:
+The **430 / 530 / 650Xi** toggle above the faceplate switches boxes.
 
-| | GNS 430W | GNS 530W |
-| --- | --- | --- |
-| Faceplate | 446×186 | 464×338 |
-| Display | 240×128 | 320×234 |
-| Bottom row | CDI OBS MSG FPL PROC | + VNAV |
-| RNG | horizontal rocker | vertical rocker |
-| Radios | flip-flop beside knob | flip-flop above knob |
+| | GNS 430W | GNS 530W | GTN 650Xi |
+| --- | --- | --- | --- |
+| Faceplate | 446×186 | 464×338 | 500×213 |
+| Display | 240×128 | 320×234 | 840×372 |
+| Input | knobs and keys | knobs and keys | touchscreen |
+| Bottom row | CDI OBS MSG FPL PROC | + VNAV | — |
+| RNG | horizontal rocker | vertical rocker | on-screen +/− |
+
+The two GNS boxes are the same firmware in different housings, so their logic,
+pages and knobs are identical; what changes is the hardware and the room on
+screen.
+
+The **GTN 650Xi** is a different interface to the same machinery. It has only
+two hard keys (HOME and Direct-To), a dual knob and a volume knob — everything
+else is on the glass, so its renderer draws its own controls and tags them with
+`data-touch`. Waypoint entry is an on-screen keypad rather than Spell'N'Find by
+knob, though the underlying matching is the same code.
 
 Every unit is described by a profile in `src/units.js` — faceplate size, where
 the display sits, its pixel resolution, and the clickable regions. Adding
@@ -193,7 +204,10 @@ exists so the unit stays sharp at any zoom, and so this repo ships no artwork
 that is not its own.
 
 **Behaviour.** The 400W-series Pilot's Guide (Garmin 190-00356-00), which ships
-inside the same installer. The manuals are Garmin's copyright and are not in
+inside the same installer, and the
+[GTN Xi Series Pilot's Guide](https://static.garmin.com/pumac/190-02327-03_g.pdf)
+(190-02327-03) for the touchscreen unit. The GTN faceplate is drawn from the
+bezel diagram in that guide. The manuals are Garmin's copyright and are not in
 this repo; extract them yourself with:
 
 ```
@@ -253,6 +267,11 @@ can cull to the viewport. Worst case is 2.9 ms per frame at 200 NM.
 - **The 530's Default NAV page does not use its extra height.** Every list page
   and the map grow with the display; that one page keeps the 430's layout and
   leaves space below.
+- **The GTN is a first slice.** Home, Direct-To, Map, Flight Plan, Nearest,
+  Waypoint Info and Procedures work; Traffic, Terrain, Weather, Utilities and
+  System are placeholders. Its appearance is drawn from the Pilot's Guide
+  rather than matched against the real unit, so the behaviour is faithful but
+  the look is an approximation.
 - **VNAV is a stub.** The 530 has the key; the page behind it is not built.
 - **Simple flight model.** Constant ground speed straight at the active
   waypoint; no wind, turn rate, or autopilot.

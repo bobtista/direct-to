@@ -297,9 +297,15 @@ main {
 
 /* --- clickable regions --------------------------------------------------- */
 
+/* The overlay must not swallow taps meant for a touchscreen unit's display. */
 #hits {
   position: absolute;
   inset: 0;
+  pointer-events: none;
+}
+
+.hit {
+  pointer-events: auto;
 }
 
 .hit {
@@ -388,4 +394,148 @@ kbd {
   border-bottom-width: 2px;
   border-radius: 4px;
   background: #232936;
+}
+
+
+/* --- touchscreen units ---------------------------------------------------- */
+
+#grid[data-family='GTN'] {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  letter-spacing: 0;
+  background: #05070b;
+}
+
+#grid .gt {
+  position: absolute;
+  white-space: pre;
+  line-height: 1.15;
+}
+
+#grid .gpanel {
+  position: absolute;
+  border-radius: 6px;
+  background: #101722;
+  border: 1px solid #223047;
+}
+
+#grid .gpanel.gbar {
+  background: linear-gradient(#16202e, #0d141d);
+  border-radius: 0;
+  border-width: 0 0 1px;
+}
+
+#grid .gpanel.gside {
+  border-radius: 0;
+  border-width: 0 0 0 1px;
+}
+
+#grid .gpanel.gfield {
+  background: #0b1119;
+  border-color: #35507a;
+}
+
+#grid .gpanel.growrow {
+  background: #0c131c;
+  border-color: #1c2a3d;
+}
+
+#grid .gpanel.gmsg {
+  background: #16202e;
+  border-color: #ffd33d;
+  border-width: 2px;
+}
+
+#grid .gdot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+}
+
+#grid .gbtn {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0;
+  border: 1px solid #2c3b54;
+  border-radius: 7px;
+  background: linear-gradient(#1b2636, #121a26);
+  color: #e8ecf3;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 80ms ease, transform 80ms ease;
+}
+
+#grid .gbtn:hover {
+  background: linear-gradient(#243247, #18212f);
+}
+
+#grid .gbtn:active {
+  transform: translateY(1px);
+  background: #2e3f59;
+}
+
+#grid .gbtn-l {
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+#grid .gbtn-s {
+  font-size: 17px;
+  color: #46d7ff;
+}
+
+#grid .gbtn.gfreq {
+  align-items: flex-start;
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 0 12px;
+}
+
+#grid .gbtn.gfreq .gbtn-l {
+  color: #fff;
+  align-self: center;
+}
+
+#grid .gbtn.gfreq .gbtn-s {
+  align-self: center;
+}
+
+#grid .gbtn.gapp {
+  background: linear-gradient(#1e2b3d, #141d2a);
+}
+
+#grid .gbtn.gkey {
+  background: linear-gradient(#222d3f, #16202d);
+  font-weight: 700;
+}
+
+#grid .gbtn.gok {
+  background: linear-gradient(#1d5c2c, #14401f);
+  border-color: #2f8c46;
+}
+
+#grid .gbtn.grow {
+  align-items: flex-start;
+  padding-left: 14px;
+}
+
+#grid .gbtn.gdim {
+  opacity: 0.45;
+}
+
+#bezel .gbrand {
+  fill: #c8ccd3;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+#bezel .glbl {
+  fill: #e9e9e9;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-weight: 700;
 }

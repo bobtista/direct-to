@@ -3,7 +3,9 @@ import { UNITS, DEFAULT_UNIT, unitFor } from './units.js';
 import { NavData } from './navdata.js';
 import { Procedures } from './procedures.js';
 import { GNS } from './gns.js';
-import { renderScreen, setBasemap } from './screen.js';
+import { renderScreen } from './screen.js';
+import { renderGtnScreen } from './gtnscreen.js';
+import { setBasemap } from './mapdraw.js';
 
 const unitEl = document.getElementById('unit');
 const bezelEl = document.getElementById('bezel');
@@ -82,20 +84,26 @@ function buildFaceplate() {
   unitEl.style.setProperty('--bw', bezel.w);
   unitEl.style.setProperty('--bh', bezel.h);
 
+  // A touchscreen unit has no faceplate artwork worth lifting, so some units
+  // simply have no original skin to offer.
   bezelEl.innerHTML =
     `<div class="skin skin-modern">${art()}</div>` +
-    `<img class="skin skin-original" src="${bitmap}" alt="${unit.name} faceplate, original trainer artwork">`;
+    (bitmap
+      ? `<img class="skin skin-original" src="${bitmap}" alt="${unit.name} faceplate, original trainer artwork">`
+      : '');
 
-  // The original artwork is Garmin's and is not distributed with the source, so
-  // the Original skin is only offered when the bitmap is actually present.
   originalAvailable = false;
   const img = bezelEl.querySelector('.skin-original');
   const settle = () => setSkin(readStore(SKIN_KEY) ?? 'modern');
-  img.addEventListener('error', settle);
-  img.addEventListener('load', () => {
-    originalAvailable = true;
+  if (!img) {
     settle();
-  });
+  } else {
+    img.addEventListener('error', settle);
+    img.addEventListener('load', () => {
+      originalAvailable = true;
+      settle();
+    });
+  }
 
   Object.assign(screenEl.style, {
     left: `${(screen.x / bezel.w) * 100}%`,
@@ -106,6 +114,7 @@ function buildFaceplate() {
 
   grid.style.width = `${unit.px.w}px`;
   grid.style.height = `${unit.px.h}px`;
+  grid.dataset.family = unit.family ?? 'GNS';
   if (grid.parentElement !== screenEl) screenEl.appendChild(grid);
 
   // Smaller regions win, so a knob's centre push beats the rotate halves it
@@ -148,7 +157,9 @@ function setSkin(skin) {
   originalBtn.disabled = !originalAvailable;
   originalBtn.title = originalAvailable
     ? `Garmin's original ${unit.short} trainer artwork`
-    : `Needs ${unit.bitmap}, extracted from your own copy of the Garmin trainer installer. See the README.`;
+    : unit.bitmap
+      ? `Needs ${unit.bitmap}, extracted from your own copy of the Garmin trainer installer. See the README.`
+      : `${unit.name} is a touchscreen unit — its faceplate is drawn, not extracted.`;
   writeStore(SKIN_KEY, skin);
 }
 
@@ -256,12 +267,21 @@ window.addEventListener('keydown', (e) => {
 // --- render loop -----------------------------------------------------------
 
 function render() {
-  grid.innerHTML = renderScreen(gns.view);
   const v = gns.view;
+  grid.innerHTML = v.family === 'GTN' ? renderGtnScreen(v) : renderScreen(v);
   statusEl.textContent = v.nav
     ? `→ ${v.nav.to}   ${v.nav.dis.toFixed(1)} nm   DTK ${Math.round(v.nav.dtk)}°   GS ${Math.round(v.groundSpeed)} kt`
     : 'no active waypoint — press D→ and spell an identifier';
 }
+
+// A touchscreen unit draws its own controls; forward taps to the state machine.
+screenEl.addEventListener('pointerdown', (e) => {
+  const target = e.target.closest('[data-touch]')?.dataset.touch;
+  if (!target) return;
+  e.preventDefault();
+  gns.handle({ type: 'touch', target });
+  render();
+});
 
 // The aircraft flies so distances and the CDI actually move.
 setInterval(() => {

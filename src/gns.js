@@ -78,6 +78,13 @@ export class GNS {
     this.wptEntry = null;
     this.wptSelected = null;
     this.nrstIndex = 0;
+
+    // Touchscreen units navigate by app rather than by page group.
+    this.gtn = { page: 'HOME', dto: null };
+  }
+
+  get isTouch() {
+    return this.unit.family === 'GTN';
   }
 
   // --- navigation targets --------------------------------------------------
@@ -106,7 +113,117 @@ export class GNS {
     if (!ev) return;
     if (ev.type === 'knob') this.#knob(ev.knob, ev.dir);
     else if (ev.type === 'press') this.#press(ev.key);
+    else if (ev.type === 'touch') this.touch(ev.target);
     else if (ev.type === 'hold' && ev.key === 'CLR') this.#defaultNav();
+  }
+
+  // --- touchscreen -----------------------------------------------------------
+  //
+  // Targets come from data-touch attributes the GTN renderer emits, so the
+  // screen owns its own controls and this only has to know what they mean.
+
+  touch(target) {
+    if (!target) return;
+
+    if (target === 'MSG_OK') {
+      this.message = null;
+      return;
+    }
+    if (this.message) {
+      this.message = null;
+      return;
+    }
+
+    if (target === 'COM_FF') return this.#press('COM_FF');
+    if (target === 'VLOC_FF') return this.#press('VLOC_FF');
+    if (target === 'RNG_UP') return this.#press('RNG_UP');
+    if (target === 'RNG_DOWN') return this.#press('RNG_DOWN');
+
+    if (target.startsWith('APP_')) return this.#openApp(target.slice(4));
+
+    if (target.startsWith('KEY_')) {
+      this.#ensureDto();
+      this.gtn.dto.push(target.slice(4));
+      return;
+    }
+    if (target === 'DTO_BKSP') {
+      this.#ensureDto();
+      this.gtn.dto.backspace();
+      return;
+    }
+    if (target === 'DTO_CLR') {
+      this.#ensureDto();
+      this.gtn.dto.clear();
+      return;
+    }
+    if (target === 'DTO_ACTIVATE') {
+      const wp = this.gtn.dto?.resolve() ?? this.gtn.dto?.match;
+      if (!wp) {
+        this.message = 'INVALID WAYPOINT';
+        return;
+      }
+      this.activateDirectTo(wp);
+      this.gtn.page = 'MAP';
+      this.gtn.dto = null;
+      return;
+    }
+
+    if (target.startsWith('NRST_')) {
+      const wp = this.db.exact(target.slice(5));
+      if (wp) {
+        this.selectWaypoint(wp);
+        this.#ensureDto(wp.id);
+        this.gtn.page = 'DTO';
+      }
+      return;
+    }
+
+    if (target.startsWith('PROC_A_')) {
+      const p = this.proc;
+      if (!p) return;
+      p.sel = Number(target.slice(7));
+      return this.#procEnter();
+    }
+    if (target.startsWith('PROC_T_')) {
+      const p = this.proc;
+      if (!p) return;
+      p.tsel = Number(target.slice(7));
+      return this.#procEnter();
+    }
+    if (target === 'PROC_LOAD' || target === 'PROC_ACTIVATE') {
+      const p = this.proc;
+      if (!p) return;
+      p.csel = target === 'PROC_ACTIVATE' ? 1 : 0;
+      this.#procEnter();
+      this.gtn.page = 'FPL';
+      return;
+    }
+  }
+
+  #ensureDto(seed = '') {
+    if (!this.gtn.dto) this.gtn.dto = new IdentEntry(this.db, { initial: seed });
+    else if (seed) {
+      this.gtn.dto.clear();
+      for (const ch of seed) this.gtn.dto.push(ch);
+    }
+  }
+
+  #openApp(app) {
+    if (app === 'HOME') {
+      this.gtn.page = 'HOME';
+      return;
+    }
+    if (app === 'PROC') {
+      this.#openProc();
+      this.gtn.page = 'PROC';
+      return;
+    }
+    if (['MAP', 'FPL', 'NRST', 'WPT'].includes(app)) {
+      if (app === 'WPT') this.#ensureWptEntry();
+      this.gtn.page = app;
+      return;
+    }
+    this.gtn.page = app; // stub pages render a placeholder
   }
 
   #defaultNav() {
@@ -199,6 +316,9 @@ export class GNS {
         return this.#openMenu();
       case 'FPL':
         return this.#toggleFpl();
+      case 'HOME':
+        this.gtn.page = 'HOME';
+        return;
       case 'PROC':
         return this.#openProc();
       case 'VNAV':
@@ -264,6 +384,11 @@ export class GNS {
   // --- Direct-To -----------------------------------------------------------
 
   #openDto() {
+    if (this.isTouch) {
+      this.#ensureDto(this.to?.id ?? '');
+      this.gtn.page = 'DTO';
+      return;
+    }
     // From the nearest list, direct-to pre-fills the highlighted airport —
     // the flow the guide describes for diverting.
     let preset = this.to?.id ?? '';
@@ -726,7 +851,21 @@ export class GNS {
       pageCount: PAGE_GROUPS[this.group].pages.length,
       cursor: this.cursor,
       unit: this.unit.id,
+      family: this.unit.family ?? 'GNS',
       px: { ...this.unit.px },
+      gtn: {
+        page: this.gtn.page,
+        dto: this.gtn.dto
+          ? { ident: this.gtn.dto.value, match: this.gtn.dto.match }
+          : { ident: '', match: null },
+        dtoInfo:
+          this.gtn.dto?.match && this.pos
+            ? {
+                brg: bearingDeg(this.pos, this.gtn.dto.match),
+                dis: distanceNm(this.pos, this.gtn.dto.match),
+              }
+            : null,
+      },
       com: { ...this.com },
       vloc: { ...this.vloc },
       tuning: this.tuning,
@@ -766,7 +905,7 @@ export class GNS {
         selected: this.wptSelected,
       },
       nrst:
-        page === 'NRST_AIRPORT' || this.mode === 'MENU'
+        page === 'NRST_AIRPORT' || this.mode === 'MENU' || this.gtn.page === 'NRST'
           ? {
               rows: this.nearest.map((n) => ({
                 id: n.wp.id,
