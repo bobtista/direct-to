@@ -24,6 +24,10 @@ Then open <http://localhost:8770>. `npm test` runs 42 tests with no browser.
 3. **The controller answers** over a simulated VHF channel
 4. **Read it back** — and get told precisely what you missed
 
+The buttons track whose turn it is. *Say again* only repeats something already
+transmitted: when it is your turn there is nothing to repeat, and playing the
+reply early would spoil the answer.
+
 Wind, altimeter, ATIS letter and squawk are randomised each brief, so the
 numbers are never the ones you memorised last time. The active runway follows
 the wind.
@@ -108,8 +112,10 @@ final say.
 
 ## Known gaps
 
-- **One scenario type.** Towered departure with flight following. Arrivals,
-  pattern work, Class B transitions and untowered self-announce are not built.
+- **One scenario type.** Towered departure with flight following, at a Class D
+  field. Arrivals, pattern work, Class C and B entry, and untowered
+  self-announce are not built. The airspace class changes what is *required* of
+  you, so each deserves its own scenario rather than a reskin.
 - **Scripted, not conversational.** Replies are deterministic, which costs
   nothing and grades reliably, but will not react to an unusual request. An LLM
   controller is a later upgrade, not a prerequisite.

@@ -145,6 +145,8 @@ function showStep() {
     els.freq.textContent = '---.---';
     els.facility.textContent = '—';
     els.ptt.disabled = true;
+    els.hear.disabled = true;
+    els.show.disabled = true;
     return;
   }
   els.freq.textContent = s.freq;
@@ -152,25 +154,52 @@ function showStep() {
   els.prompt.textContent = s.prompt;
   els.example.hidden = true;
   els.example.textContent = s.example ?? '';
-  els.ptt.disabled = !recognition || !s.example;
   els.typedText.value = '';
+  refreshControls();
 
   // Some steps are the controller talking first; nothing to say, just listen.
   if (s.controllerFirst) transmit(s);
+}
+
+let speaking = false;
+
+/** Repeat a transmission that has already happened. Changes no state. */
+async function replay(s) {
+  if (!s?.transmitted || speaking) return;
+  speaking = true;
+  refreshControls();
+  log('atc', `${s.facility}: ${s.reply}`);
+  await speakThroughRadio(audio(), s.replySpeech ?? s.reply, voiceFor(s.facility));
+  speaking = false;
+  refreshControls();
 }
 
 /** Play the controller's reply and, if the step needs one, wait for a readback. */
 async function transmit(s) {
   const r = audio();
   s.transmitted = true;
+  speaking = true;
+  refreshControls();
   // Show the written form, speak the spoken one.
   log('atc', `${s.facility}: ${s.reply}`);
   await speakThroughRadio(r, s.replySpeech ?? s.reply, voiceFor(s.facility));
+  speaking = false;
   if (s.note) log('note', s.note);
-  if (!s.requires.length) {
-    // Nothing mandatory here; move on once the pilot acknowledges or skips.
-    els.ptt.disabled = !recognition;
-  }
+  refreshControls();
+}
+
+/** Enable only the buttons that make sense for where the exchange has got to. */
+function refreshControls() {
+  const s = currentStep();
+  const yourTurn = Boolean(s) && (!s.controllerFirst || s.transmitted) && !speaking;
+  els.ptt.disabled = !recognition || !yourTurn;
+  els.hear.disabled = !s?.transmitted || speaking;
+  els.hear.title = speaking
+    ? 'The controller is still transmitting'
+    : s?.transmitted
+      ? 'Repeat the last transmission'
+      : 'Nothing to repeat yet — it is your turn';
+  els.show.disabled = !s?.example;
 }
 
 function log(kind, text) {
@@ -298,10 +327,10 @@ els.typed.addEventListener('submit', (e) => {
   handleInput(said);
 });
 
-els.hear.addEventListener('click', () => {
-  const s = currentStep();
-  if (s) transmit(s);
-});
+// "Say again" repeats what the controller already said. When it is still your
+// turn there is nothing to repeat, and playing the reply early would both spoil
+// the answer and leave the step thinking it had transmitted.
+els.hear.addEventListener('click', () => replay(currentStep()));
 
 els.show.addEventListener('click', () => {
   els.example.hidden = !els.example.hidden;
