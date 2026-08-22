@@ -15,12 +15,24 @@
 
       <section id="setup">
         <div class="field">
+          <label for="kind">Scenario</label>
+          <select id="kind">
+            <option value="departure">Towered departure + flight following</option>
+            <option value="untowered">Untowered — pattern and return</option>
+            <option value="classb">Class B transition</option>
+          </select>
+        </div>
+        <div class="field">
           <label for="home">Departing</label>
           <input id="home" list="airports" value="KOWD" autocomplete="off" spellcheck="false" />
         </div>
         <div class="field">
           <label for="dest">To</label>
           <input id="dest" list="airports" value="KPYM" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="field" id="bravo-field" hidden>
+          <label for="bravo">Through</label>
+          <input id="bravo" list="airports" value="KBOS" autocomplete="off" spellcheck="false" />
         </div>
         <div class="field">
           <label for="tail">Tail</label>
@@ -54,7 +66,7 @@
           <button id="ptt" type="button" disabled>Push to talk</button>
           <button id="type-instead" type="button">Type instead</button>
           <button id="hear" type="button">Say again</button>
-          <button id="show" type="button">Show me</button>
+          <button id="show" type="button">Peek</button>
           <button id="mute" type="button" aria-pressed="false">Mute</button>
         </div>
 
@@ -63,7 +75,12 @@
           <button type="submit">Transmit</button>
         </form>
 
-        <div id="example" hidden></div>
+        <div id="example" hidden>
+          <h4>Say something like</h4>
+          <p id="peek-say"></p>
+          <h4>Why</h4>
+          <p id="peek-why"></p>
+        </div>
       </section>
 
       <section id="log" aria-live="polite"></section>

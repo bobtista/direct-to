@@ -1,6 +1,11 @@
 import { Radio, speakThroughRadio } from './radio.js';
-import { departureWithFlightFollowing, randomWx } from './scenario.js';
-import { grade } from './grade.js';
+import {
+  departureWithFlightFollowing,
+  untoweredPattern,
+  classBTransition,
+  randomWx,
+} from './scenario.js';
+import { grade, isCallup } from './grade.js';
 import { WRITTEN } from './phraseology.js';
 
 const $ = (id) => document.getElementById(id);
@@ -26,6 +31,11 @@ const els = {
   example: $('example'),
   log: $('log'),
   mute: $('mute'),
+  kind: $('kind'),
+  bravo: $('bravo'),
+  bravoField: $('bravo-field'),
+  peekSay: $('peek-say'),
+  peekWhy: $('peek-why'),
 };
 
 // --- data -------------------------------------------------------------------
@@ -116,25 +126,48 @@ function currentStep() {
 function brief() {
   const home = byId.get(els.home.value.trim().toUpperCase());
   const dest = byId.get(els.dest.value.trim().toUpperCase());
+  const kind = els.kind.value;
   if (!home || !dest) {
     els.banner.textContent = 'Unknown airport. Use an ICAO identifier like KOWD.';
     return;
   }
-  if (!home.towered) {
-    els.banner.textContent = `${home.id} is untowered — pick a towered field to practise ATC calls.`;
+  if (kind !== 'untowered' && !home.towered) {
+    els.banner.textContent = `${home.id} is untowered — pick a towered field, or switch to the untowered scenario.`;
+    return;
+  }
+  if (kind === 'untowered' && !home.freq.ctaf) {
+    els.banner.textContent = `${home.id} has no CTAF in the data — pick another field.`;
     return;
   }
 
   const ac = { tail: els.tail.value.trim() || 'N725SP', type: els.type.value || undefined };
-  scenario = departureWithFlightFollowing({ home, dest, ac, wx: randomWx() });
-  step = 0;
+  const wx = randomWx();
 
+  if (kind === 'untowered') {
+    scenario = untoweredPattern({ home, dest, ac, wx });
+  } else if (kind === 'classb') {
+    const bravo = byId.get(els.bravo.value.trim().toUpperCase());
+    if (!bravo) {
+      els.banner.textContent = 'Unknown Class B airport.';
+      return;
+    }
+    scenario = classBTransition({ home, dest, bravo, ac, wx });
+  } else {
+    scenario = departureWithFlightFollowing({ home, dest, ac, wx });
+  }
+
+  step = 0;
   els.log.innerHTML = '';
   els.panel.hidden = false;
-  els.banner.textContent =
-    `${scenario.title} · wind ${String(scenario.wx.windDir).padStart(3, '0')} at ` +
-    `${scenario.wx.windKt} · altimeter ${scenario.wx.altimeter} · information ${WRITTEN.atis(scenario.wx.atis)} · ` +
-    `runway ${scenario.rwy} · you are ${WRITTEN.callsign(ac)}`;
+
+  const bits = [
+    scenario.title,
+    `wind ${String(wx.windDir).padStart(3, '0')} at ${wx.windKt}`,
+    `altimeter ${wx.altimeter}`,
+  ];
+  if (kind !== 'classb') bits.push(`information ${WRITTEN.atis(wx.atis)}`, `runway ${scenario.rwy}`);
+  bits.push(`you are ${WRITTEN.callsign(ac)}`);
+  els.banner.textContent = bits.join(' · ');
   showStep();
 }
 
@@ -153,7 +186,7 @@ function showStep() {
   els.facility.textContent = s.facility;
   els.prompt.textContent = s.prompt;
   els.example.hidden = true;
-  els.example.textContent = s.example ?? '';
+  refreshPeek();
   els.typedText.value = '';
   refreshControls();
 
@@ -199,7 +232,7 @@ function refreshControls() {
     : s?.transmitted
       ? 'Repeat the last transmission'
       : 'Nothing to repeat yet — it is your turn';
-  els.show.disabled = !s?.example;
+  els.show.disabled = !s;
 }
 
 function log(kind, text) {
@@ -216,6 +249,26 @@ async function submitCall(said) {
   if (!s || !said.trim()) return;
   log('pilot', `You: ${said}`);
 
+  // A bare check-in is a real move on a busy frequency: you wait for "go ahead"
+  // before spending airtime on the whole request.
+  if (isCallup(said, { facility: s.facility, tail: scenario.ac.tail })) {
+    const abbr = WRITTEN.callsign(scenario.ac, { abbreviated: true });
+    const reply = `${abbr}, ${s.facility}, go ahead.`;
+    log('atc', `${s.facility}: ${reply}`);
+    speaking = true;
+    refreshControls();
+    await speakThroughRadio(audio(), reply, voiceFor(s.facility));
+    speaking = false;
+    log('note', 'Now make the request.');
+    refreshControls();
+    return;
+  }
+
+  // Untowered: nobody answers, so the call itself is what gets graded.
+  if (s.mode === 'announce') {
+    return report(grade(said, s.requires, { ...scenario.ac, mode: 'announce' }), s);
+  }
+
   if (!s.controllerFirst) {
     // Decide the readback is owed *before* awaiting the reply. A pilot can key
     // up while the controller is still talking, and that input must be graded
@@ -229,9 +282,7 @@ async function submitCall(said) {
     return advance();
   }
 
-  const result = grade(said, s.requires, scenario.ac);
-  log(result.safe ? (result.pass ? 'good' : 'warn') : 'bad', result.summary);
-  advance();
+  report(grade(said, s.requires, scenario.ac), s);
 }
 
 /** Grade a readback for a step whose reply has already played. */
@@ -243,10 +294,34 @@ function submitReadback(said) {
     return advance();
   }
   log('pilot', `You: ${said}`);
-  const result = grade(said, s.requires, scenario.ac);
+  report(grade(said, s.requires, scenario.ac), s);
+}
+
+/**
+ * Show the critique, and only move on when it was right.
+ *
+ * Failing forward teaches the wrong thing: if the readback was incomplete you
+ * stay on this step and try again, the way a controller would simply wait.
+ */
+function report(result, s) {
   log(result.safe ? (result.pass ? 'good' : 'warn') : 'bad', result.summary);
-  s.awaitingReadback = false;
-  advance();
+
+  if (result.pass) {
+    s.attempts = 0;
+    return advance();
+  }
+
+  s.attempts = (s.attempts ?? 0) + 1;
+  const what = s.mode === 'announce' ? 'call' : 'readback';
+  if (s.attempts === 1) {
+    log('note', `Try that ${what} again — say the parts you missed.`);
+  } else {
+    // Two misses is enough; show the model call rather than let it grind.
+    refreshPeek();
+    els.example.hidden = false;
+    log('note', 'Here is the wording — say it and move on.');
+  }
+  refreshControls();
 }
 
 function advance() {
@@ -257,6 +332,7 @@ function advance() {
 function handleInput(said) {
   const s = currentStep();
   if (!s || !said.trim()) return;
+  if (s.mode === 'announce') return submitCall(said);
   // Once a step's reply has gone out, anything further is a readback — even if
   // the controller is still mid-transmission.
   if (s.awaitingReadback || s.transmitted) submitReadback(said);
@@ -332,8 +408,22 @@ els.typed.addEventListener('submit', (e) => {
 // the answer and leave the step thinking it had transmitted.
 els.hear.addEventListener('click', () => replay(currentStep()));
 
+function refreshPeek() {
+  const s = currentStep();
+  if (!s) return;
+  // Before the controller speaks you need the call; afterwards, the readback.
+  const say = s.transmitted && s.readback ? s.readback : s.example ?? s.readback;
+  els.peekSay.textContent = say ?? '(nothing to say — just listen)';
+  els.peekWhy.textContent = s.why ?? '';
+}
+
 els.show.addEventListener('click', () => {
+  refreshPeek();
   els.example.hidden = !els.example.hidden;
+});
+
+els.kind.addEventListener('change', () => {
+  els.bravoField.hidden = els.kind.value !== 'classb';
 });
 
 // Space bar keys the mic, the way a yoke switch would.

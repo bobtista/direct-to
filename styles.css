@@ -110,12 +110,36 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 #example {
   margin-top: 12px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-left: 3px solid var(--cyn);
   background: #10141b;
   border-radius: 0 7px 7px 0;
+}
+
+#example h4 {
+  margin: 0 0 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--cyn);
+}
+
+#example h4 + p {
+  margin: 0 0 12px;
+}
+
+#example p:last-child { margin-bottom: 0; }
+
+#peek-say {
+  font-size: 15px;
+  color: #d8ecff;
+  font-weight: 500;
+}
+
+#peek-why {
   font-size: 14px;
-  color: #cfe3f5;
+  color: #a9b6c9;
+  line-height: 1.6;
 }
 
 #log { margin-top: 18px; display: flex; flex-direction: column; gap: 6px; }

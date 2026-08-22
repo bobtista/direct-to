@@ -13,9 +13,39 @@ required to read back.
 npm start
 ```
 
-Then open <http://localhost:8770>. `npm test` runs 42 tests with no browser.
+Then open <http://localhost:8770>. `npm test` runs 49 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
+
+## Scenarios
+
+| | What it drills |
+| --- | --- |
+| **Towered departure** | Ground, Tower, departure instruction, flight following, handoffs |
+| **Untowered** | Self-announce from taxi through pattern and back, on CTAF |
+| **Class B transition** | The one where two-way contact is *not* permission |
+
+Each one grades what that airspace actually requires of you, which is the point:
+
+- **Untowered** — nothing is required by regulation. No ATC, no clearance.
+  Self-announcing is recommended practice, and the discipline is bookending
+  every call with the field name and saying what you intend to do next.
+- **Class D** — two-way radio communication must be *established* before you
+  enter (91.129). The test is whether the controller used **your callsign**.
+  "Skyhawk 725SP, standby" means you are established. "Aircraft calling,
+  standby" does not.
+- **Class C** — same callsign rule (91.130), plus Mode C. You get a discrete
+  squawk and radar service.
+- **Class B** — an **explicit clearance** is required (91.131). You must hear
+  "cleared into the Class Bravo". "Radar contact" is not it, and neither is
+  "remain clear" — which means exactly what it says.
+
+## Peek
+
+The **Peek** button shows two things for the step you are on: the model call,
+written the way you would note it on a kneeboard, and *why* those elements are
+required. Before the controller speaks it shows the call to make; afterwards, the
+readback. Miss a readback twice and it opens by itself.
 
 ## The loop
 
@@ -23,6 +53,13 @@ Then open <http://localhost:8770>. `npm test` runs 42 tests with no browser.
 2. **Make the call** — hold *Push to talk* (or the space bar), or type it
 3. **The controller answers** over a simulated VHF channel
 4. **Read it back** — and get told precisely what you missed
+
+Get it wrong and you stay on the step and try again. Failing forward teaches the
+wrong thing, so a controller here does what a real one does: waits.
+
+A bare check-in works too. "Boston Approach, Skyhawk 725SP" gets you a
+"go ahead" rather than a failed grade — that is a real move on a busy frequency,
+not a mistake.
 
 The buttons track whose turn it is. *Say again* only repeats something already
 transmitted: when it is your turn there is nothing to repeat, and playing the
@@ -112,10 +149,11 @@ final say.
 
 ## Known gaps
 
-- **One scenario type.** Towered departure with flight following, at a Class D
-  field. Arrivals, pattern work, Class C and B entry, and untowered
-  self-announce are not built. The airspace class changes what is *required* of
-  you, so each deserves its own scenario rather than a reskin.
+- **No arrivals into a towered field yet.** Departure, untowered and Class B
+  transition are built; the towered arrival — approach, tower, taxi in — is not.
+- **No clearance delivery step.** At a Class C like Austin you would call
+  Clearance first and get your squawk and departure frequency before taxi. The
+  scenario picks the code up airborne instead.
 - **Scripted, not conversational.** Replies are deterministic, which costs
   nothing and grades reliably, but will not react to an unusual request. An LLM
   controller is a later upgrade, not a prerequisite.

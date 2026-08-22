@@ -10,12 +10,53 @@
 
 import { contains, normalize } from './phraseology.js';
 
+/**
+ * Is this just a callup — "Boston Approach, Skyhawk 725SP" — rather than a
+ * request?
+ *
+ * On a busy frequency you check in first and wait for "go ahead" before using
+ * up airtime with the whole request. Grading that as a failed readback is both
+ * wrong and discouraging, so it gets recognised as its own move.
+ */
+const CONTENT_WORDS =
+  /\b(squawk|ident|runway|hold|holding|short|cleared|clear|contact|maintain|climb|climbing|descend|descending|turn|heading|request|requesting|with|information|altimeter|traffic|taxi|ready|departure|departing|landing|land|inbound|miles|mile|radar|transit|following|downwind|base|final|crosswind|midfield|pattern|straight|approved|roger|wilco|negative|affirm|point|decimal|remaining|entering|position|advise)\b/;
+
+/** Words that name a facility rather than say anything. */
+const FACILITY_WORDS =
+  /\b(ground|tower|approach|departure|clearance|delivery|center|centre|radio|unicom|ctaf|control)\b/g;
+
+export function isCallup(said, { facility = '', tail = '' } = {}) {
+  // Any instruction or request word means this is real content, not a callup.
+  // "squawk 4680, 5SP" strips down to almost nothing but is clearly a readback.
+  if (CONTENT_WORDS.test(String(said).toLowerCase())) return false;
+
+  let rest = ` ${String(said).toLowerCase()} `;
+  // Strip the two things every callup contains: who you are calling, and who
+  // you are. Whatever is left is the actual content.
+  for (const word of facility.toLowerCase().split(/\s+/).filter(Boolean)) {
+    rest = rest.replaceAll(word, ' ');
+  }
+  rest = rest
+    .replace(FACILITY_WORDS, ' ')
+    .replace(/\b(november|skyhawk|warrior|cessna|cirrus|piper|arrow|bonanza|diamond|skylane)\b/g, ' ')
+    .replace(/[a-z]?\d[\d\s]*[a-z]{0,2}/g, ' ') // the tail number, spoken or written
+    .replace(/\b(zero|one|two|three|four|five|six|seven|eight|niner|nine|tree|fower|fife)\b/g, ' ')
+    .replace(/\b(alpha|bravo|charlie|delta|echo|foxtrot|golf|hotel|india|juliet|juliett|kilo|lima|mike|oscar|papa|quebec|romeo|sierra|tango|uniform|victor|whiskey|xray|yankee|zulu)\b/g, ' ')
+    .replace(/\b(good\s+(morning|afternoon|evening)|hello|hi|sir|maam)\b/g, ' ')
+    .replace(/[^a-z]/g, ' ')
+    .trim();
+  // Whatever survives is the airport or facility name, which a callup may name.
+  return rest.split(/\s+/).filter(Boolean).length <= 2;
+}
+
 /** Habits that mark a pilot out as sloppy on frequency. */
 const BAD_HABITS = [
   {
     id: 'roger-instead-of-readback',
-    test: (said, req) =>
-      /\broger\b/.test(said.toLowerCase()) && req.some((r) => r.critical),
+    test: (said, req, ctx) =>
+      ctx?.mode !== 'announce' &&
+      /\broger\b/.test(said.toLowerCase()) &&
+      req.some((r) => r.critical),
     note: '"Roger" does not substitute for a required readback.',
   },
   {
@@ -48,6 +89,9 @@ const BAD_HABITS = [
  * @param {{tail?: string}} ctx
  */
 export function grade(said, required = [], ctx = {}) {
+  // Untowered calls are announcements, not readbacks; saying "readback" there
+  // is just confusing.
+  const mode = ctx.mode === 'announce' ? 'announce' : 'readback';
   const heard = normalize(said);
   // A requirement may list several acceptable forms; any one of them counts.
   const items = required.map((r) => ({
@@ -78,21 +122,24 @@ export function grade(said, required = [], ctx = {}) {
     missed,
     missedCritical,
     habits,
-    summary: summarise({ pass, missed, missedCritical, habits }),
+    summary: summarise({ pass, missed, missedCritical, habits, mode }),
   };
 }
 
-function summarise({ pass, missed, missedCritical, habits }) {
-  if (pass && !habits.length) return 'Good readback.';
+function summarise({ pass, missed, missedCritical, habits, mode = 'readback' }) {
+  const announce = mode === 'announce';
+  if (pass && !habits.length) return announce ? 'Good call.' : 'Good readback.';
   const parts = [];
   if (missedCritical.length) {
-    parts.push(
-      `Missing required readback: ${missedCritical.map((m) => m.label).join(', ')}.`
-    );
+    const label = missedCritical.map((m) => m.label).join(', ');
+    parts.push(announce ? `Your call is missing: ${label}.` : `Missing required readback: ${label}.`);
   }
   const soft = missed.filter((m) => !m.critical);
-  if (soft.length) parts.push(`Also worth reading back: ${soft.map((m) => m.label).join(', ')}.`);
-  if (pass && habits.length) parts.push('Readback complete, but:');
+  if (soft.length) {
+    const label = soft.map((m) => m.label).join(', ');
+    parts.push(announce ? `Also worth including: ${label}.` : `Also worth reading back: ${label}.`);
+  }
+  if (pass && habits.length) parts.push(announce ? 'Call complete, but:' : 'Readback complete, but:');
   for (const h of habits) parts.push(h.note);
   return parts.join(' ');
 }

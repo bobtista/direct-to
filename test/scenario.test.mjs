@@ -1,8 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { departureWithFlightFollowing, activeRunway } from '../src/scenario.js';
-import { grade } from '../src/grade.js';
+import {
+  departureWithFlightFollowing,
+  untoweredPattern,
+  classBTransition,
+  activeRunway,
+} from '../src/scenario.js';
+import { grade, isCallup } from '../src/grade.js';
 
 const { airports } = JSON.parse(
   readFileSync(new URL('../data/airports.json', import.meta.url), 'utf8')
@@ -42,7 +47,10 @@ test('every step names a facility, a frequency and an example call', () => {
     assert.ok(step.facility, `${step.id} has a facility`);
     assert.ok(/^\d{3}\.\d{3}$/.test(step.freq), `${step.id} freq looks real: ${step.freq}`);
     assert.ok(step.reply.length > 10, `${step.id} has a reply`);
-    if (!step.controllerFirst) assert.ok(step.example, `${step.id} shows what to say`);
+    // Either you open the exchange and there is a model call, or the
+    // controller does and there is not.
+    assert.equal(Boolean(step.example), !step.controllerFirst, `${step.id} turn-taking`);
+    assert.ok(step.why, `${step.id} explains itself`);
   }
 });
 
@@ -159,4 +167,106 @@ test('the ATIS code is spoken and shown phonetically', () => {
   assert.match(ground.exampleSpeech, /information tango/, 'and says it');
   assert.ok(!/with T\b/.test(ground.example), 'never a bare letter');
   assert.ok(!/with T\b/.test(ground.prompt), 'not in the prompt either');
+});
+
+// --- untowered --------------------------------------------------------------
+
+test('untowered calls are announcements with nobody replying', () => {
+  const s = untoweredPattern({ home: byId.get('KPYM'), dest: byId.get('KPYM'), ac, wx });
+  assert.ok(s.steps.length >= 6, 'covers taxi through clear of the runway');
+  for (const step of s.steps) {
+    assert.equal(step.mode, 'announce');
+    assert.equal(step.reply, null, 'nobody answers on a CTAF');
+    assert.ok(step.example, 'every call has a model');
+    assert.ok(step.why, 'and an explanation');
+  }
+});
+
+test('every untowered call is bookended with the field name', () => {
+  const s = untoweredPattern({ home: byId.get('KPYM'), dest: byId.get('KPYM'), ac, wx });
+  for (const step of s.steps) {
+    assert.match(step.example, /^Plymouth traffic,/, `${step.id} opens with the field`);
+    assert.match(step.example, /Plymouth\.$/, `${step.id} closes with the field`);
+  }
+});
+
+test('an untowered call missing the field name fails', () => {
+  const s = untoweredPattern({ home: byId.get('KPYM'), dest: byId.get('KPYM'), ac, wx });
+  const taxi = s.steps[0];
+  const bad = grade('Skyhawk 725SP taxiing to the runway', taxi.requires, { ...ac, mode: 'announce' });
+  assert.equal(bad.safe, false);
+  assert.match(bad.summary, /Your call is missing/, 'worded as a call, not a readback');
+
+  const good = grade(taxi.example, taxi.requires, { ...ac, mode: 'announce' });
+  assert.ok(good.pass, good.summary);
+});
+
+// --- Class B ----------------------------------------------------------------
+
+test('Class B requires an explicit clearance, not just contact', () => {
+  const s = classBTransition({
+    home: byId.get('KOWD'),
+    dest: byId.get('KFIT'),
+    bravo: byId.get('KBOS'),
+    ac,
+    wx,
+  });
+  const request = s.steps.find((x) => x.id === 'request');
+  assert.match(request.reply, /remain clear of the Class Bravo/i);
+  assert.ok(
+    request.requires.some((r) => r.key === 'remainClear' && r.critical),
+    '"remain clear" is a mandatory readback'
+  );
+
+  const cleared = s.steps.find((x) => x.id === 'cleared');
+  assert.match(cleared.reply, /cleared into the Class Bravo/i);
+  assert.ok(cleared.requires.some((r) => r.key === 'clearedBravo' && r.critical));
+});
+
+test('reading back only the squawk misses "remain clear"', () => {
+  const s = classBTransition({
+    home: byId.get('KOWD'),
+    dest: byId.get('KFIT'),
+    bravo: byId.get('KBOS'),
+    ac,
+    wx,
+  });
+  const request = s.steps.find((x) => x.id === 'request');
+  const partial = grade(`squawk ${s.squawk}, 5SP`, request.requires, ac);
+  assert.equal(partial.safe, false);
+  assert.match(partial.summary, /remain clear/);
+  assert.ok(grade(request.readback, request.requires, ac).pass, 'the model readback passes');
+});
+
+// --- callup and retry -------------------------------------------------------
+
+test('a bare callup is recognised rather than graded as a failed readback', () => {
+  const s = departureWithFlightFollowing({
+    home: byId.get('KOWD'),
+    dest: byId.get('KPYM'),
+    ac,
+    wx,
+  });
+  const approach = s.steps.find((x) => x.id === 'approach');
+  assert.ok(isCallup('Boston Approach, Skyhawk N725SP', {
+    facility: approach.facility,
+    tail: ac.tail,
+  }));
+  assert.ok(!isCallup(approach.example, { facility: approach.facility, tail: ac.tail }));
+});
+
+test('every step offers a model call and an explanation for Peek', () => {
+  const builders = [
+    departureWithFlightFollowing({ home: byId.get('KOWD'), dest: byId.get('KPYM'), ac, wx }),
+    untoweredPattern({ home: byId.get('KPYM'), dest: byId.get('KPYM'), ac, wx }),
+    classBTransition({
+      home: byId.get('KOWD'), dest: byId.get('KFIT'), bravo: byId.get('KBOS'), ac, wx,
+    }),
+  ];
+  for (const s of builders) {
+    for (const step of s.steps) {
+      assert.ok(step.why?.length > 40, `${s.id}/${step.id} explains why`);
+      assert.ok(step.example || step.readback, `${s.id}/${step.id} shows what to say`);
+    }
+  }
 });
