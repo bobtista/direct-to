@@ -1,7 +1,7 @@
 import { Radio, speakThroughRadio } from './radio.js';
 import { departureWithFlightFollowing, randomWx } from './scenario.js';
 import { grade } from './grade.js';
-import { callsign } from './phraseology.js';
+import { WRITTEN } from './phraseology.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -134,7 +134,7 @@ function brief() {
   els.banner.textContent =
     `${scenario.title} · wind ${String(scenario.wx.windDir).padStart(3, '0')} at ` +
     `${scenario.wx.windKt} · altimeter ${scenario.wx.altimeter} · ATIS ${scenario.wx.atis} · ` +
-    `runway ${scenario.rwy} · you are ${callsign(ac)}`;
+    `runway ${scenario.rwy} · you are ${WRITTEN.callsign(ac)}`;
   showStep();
 }
 
@@ -163,8 +163,9 @@ function showStep() {
 async function transmit(s) {
   const r = audio();
   s.transmitted = true;
+  // Show the written form, speak the spoken one.
   log('atc', `${s.facility}: ${s.reply}`);
-  await speakThroughRadio(r, s.reply, voiceFor(s.facility));
+  await speakThroughRadio(r, s.replySpeech ?? s.reply, voiceFor(s.facility));
   if (s.note) log('note', s.note);
   if (!s.requires.length) {
     // Nothing mandatory here; move on once the pilot acknowledges or skips.

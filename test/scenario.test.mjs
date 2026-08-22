@@ -85,3 +85,64 @@ test('scenarios build for every towered airport with a departure frequency', () 
     assert.ok(s.steps.length >= 3, `${home.id} produced ${s.steps.length} steps`);
   }
 });
+
+// --- spoken vs written ------------------------------------------------------
+
+test('every step carries both a written form and a spoken form', () => {
+  const s = departureWithFlightFollowing({
+    home: byId.get('KOWD'),
+    dest: byId.get('KPYM'),
+    ac,
+    wx,
+  });
+  for (const step of s.steps) {
+    assert.ok(step.reply, `${step.id} has display text`);
+    assert.ok(step.replySpeech, `${step.id} has speech`);
+    assert.notEqual(step.reply, step.replySpeech, `${step.id} should differ between the two`);
+  }
+});
+
+test('the screen shows 725SP while the radio says seven two five sierra papa', () => {
+  const s = departureWithFlightFollowing({
+    home: byId.get('KOWD'),
+    dest: byId.get('KPYM'),
+    ac,
+    wx,
+  });
+  const approach = s.steps.find((x) => x.id === 'approach');
+  assert.match(approach.reply, /Skyhawk N725SP/, 'written callsign on screen');
+  assert.match(approach.replySpeech, /seven two five sierra papa/, 'spoken callsign on the radio');
+  assert.ok(!/seven two five/.test(approach.reply), 'no spelled-out digits on screen');
+});
+
+test('written replies use compact numbers throughout', () => {
+  const s = departureWithFlightFollowing({
+    home: byId.get('KOWD'),
+    dest: byId.get('KPYM'),
+    ac,
+    wx,
+  });
+  const ground = s.steps.find((x) => x.id === 'ground');
+  assert.match(ground.reply, new RegExp(`runway ${s.rwy}\\b`), 'runway as digits');
+
+  const handoff = s.steps.find((x) => x.id === 'handoff');
+  assert.match(handoff.reply, /\d{3}\.\d/, 'frequency as a number');
+  assert.ok(!/point/.test(handoff.reply), 'no spoken "point" on screen');
+
+  const radar = s.steps.find((x) => x.id === 'radar-contact');
+  assert.match(radar.reply, /VFR/, 'VFR written plainly');
+  assert.match(radar.replySpeech, /V-F-R/, 'and spelled for the radio');
+});
+
+test('grading still works against the written or spoken form', () => {
+  const s = departureWithFlightFollowing({
+    home: byId.get('KOWD'),
+    dest: byId.get('KPYM'),
+    ac,
+    wx,
+  });
+  const ground = s.steps.find((x) => x.id === 'ground');
+  const spelled = `runway ${[...String(s.rwy)].join(' ')}, hold short, five sierra papa`;
+  assert.ok(grade(spelled, ground.requires, ac).pass, 'spoken readback');
+  assert.ok(grade(`runway ${s.rwy}, hold short, 5SP`, ground.requires, ac).pass, 'typed readback');
+});

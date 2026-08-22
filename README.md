@@ -13,7 +13,7 @@ required to read back.
 npm start
 ```
 
-Then open <http://localhost:8770>. `npm test` runs 30 tests with no browser.
+Then open <http://localhost:8770>. `npm test` runs 34 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
 
@@ -43,7 +43,16 @@ Habits are flagged separately without failing you:
 - Dropping your callsign
 
 Grading works on meaning, not spelling: *"one two four point one"* and
-*"124.1"* are the same thing, and so are *"niner"* and *"9"*.
+*"124.1"* are the same thing, and so are *"niner"* and *"9"*. You can type a
+readback the short way or say it the long way — both are graded the same.
+
+## Two forms of every transmission
+
+A transmission is built once and rendered twice. The radio hears
+*"Skyhawk seven two five sierra papa, runway one seven"*; the screen shows
+*"Skyhawk 5SP, runway 17"*. `SPOKEN` and `WRITTEN` in `src/phraseology.js`
+implement the same interface, so a scenario is written once against a renderer
+and never has to spell anything out itself.
 
 ## Why it sounds like a radio
 

@@ -176,3 +176,49 @@ export function contains(readback, expected) {
   const needle = String(expected).toUpperCase().replace(/[\s.]/g, '');
   return hay.includes(needle);
 }
+
+// --- renderers --------------------------------------------------------------
+//
+// The same transmission has two forms: what the controller says, and what you
+// would write on a kneeboard. A scenario is built once against a renderer and
+// rendered twice, so the radio speaks "seven two five sierra papa" while the
+// screen shows "725SP".
+
+/** Everything spelled out the way it goes over the air. */
+export const SPOKEN = {
+  digits,
+  frequency,
+  heading,
+  squawk,
+  altitude,
+  runway,
+  altimeter,
+  wind,
+  callsign,
+  vfr: 'V-F-R',
+};
+
+const comma = (n) => Number(n).toLocaleString('en-US');
+
+/** Everything in the compact form you would write down. */
+export const WRITTEN = {
+  digits: (v) => String(v),
+  frequency: (mhz) => String(Number(mhz)).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, ''),
+  heading: (deg) => String(Math.round(deg) % 360).padStart(3, '0'),
+  squawk: (code) => String(code).padStart(4, '0'),
+  altitude: (ft) => (ft >= 18000 ? `FL${Math.round(ft / 100)}` : `${comma(ft)} ft`),
+  runway: (id) => String(id).toUpperCase(),
+  altimeter: (inHg) => Number(inHg).toFixed(2),
+  wind: ({ dir, kt, gust }) =>
+    kt === 0
+      ? 'calm'
+      : `${String(dir).padStart(3, '0')} at ${kt}${gust ? `G${gust}` : ''}`,
+  /** "Skyhawk N725SP" on first reference, "Skyhawk 5SP" once abbreviated. */
+  callsign: (ac, { abbreviated = false, withType = true } = {}) => {
+    const tail = ac.tail.toUpperCase().replace(/^N/, '');
+    const shown = abbreviated ? tail.slice(-3) : `N${tail}`;
+    const prefix = withType && ac.type && TYPES[ac.type] ? TYPES[ac.type] : '';
+    return `${prefix ? `${prefix} ` : ''}${shown}`;
+  },
+  vfr: 'VFR',
+};
