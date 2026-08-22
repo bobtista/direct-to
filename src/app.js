@@ -89,6 +89,7 @@ const gns = new GNS(new NavData(raw.waypoints), {
 
 const grid = document.createElement('div');
 grid.id = 'grid';
+grid.className = 'unit-grid';
 
 function buildFaceplate() {
   const { bezel, screen, regions, art } = unit;

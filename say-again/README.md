@@ -9,13 +9,25 @@ required to read back.
 
 ## Running it
 
+From the repo root:
+
 ```
 npm start
 ```
 
-Then open <http://localhost:8770>. `npm test` runs 49 tests with no browser.
+Then open <http://localhost:8765/say-again/>. `npm test` runs 54 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
+
+## The box on the panel
+
+The GPS unit above the radio panel is the same one
+[Direct-To](../DIRECT-TO.md) renders — imported from `../src`, not copied. Tune
+the standby with the left knob, flip-flop it across, and the panel tells you
+whether you are actually transmitting on the frequency this exchange is on.
+
+That check is advisory. A wrong frequency is called out but does not block the
+step, because stalling practice on a fumbled knob twist teaches nothing.
 
 ## Scenarios
 

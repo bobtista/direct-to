@@ -1,0 +1,256 @@
+/* Styling for the GPS unit itself — the faceplate lettering, the key press
+   feedback, and the primitives its screen renderer emits.
+   
+   Shared by both apps so a change to the box shows up in each. Selectors are
+   class-based rather than id-based for exactly that reason: mark the faceplate
+   with .unit-bezel and its display with .unit-grid, wherever they live. */
+
+/* --- faceplate ------------------------------------------------------------ */
+
+.unit-bezel,
+.unit-bezel svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Condensed grotesque is the closest common match to Garmin's moulded labels. */
+.unit-bezel .lbl,
+.unit-bezel .micro,
+.unit-bezel .brand,
+.unit-bezel .model,
+.unit-bezel .glbl,
+.unit-bezel .gbrand {
+  fill: #e9e9e9;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.unit-bezel .micro {
+  font-size: 4.6px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.unit-bezel .brand { letter-spacing: 0.1em; }
+.unit-bezel .gbrand { fill: #c8ccd3; letter-spacing: 0.18em; }
+.unit-bezel .model { fill: #c9c9c9; font-weight: 600; }
+.unit-bezel .lbl.dark { fill: #17181a; }
+
+/* Keys dip and darken when struck. */
+.unit-bezel .key {
+  transition: transform 70ms ease, filter 70ms ease;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.unit-bezel .key.pressed {
+  transform: translateY(0.6px) scale(0.985);
+  filter: brightness(0.72);
+}
+
+/* --- what the screen renderer emits --------------------------------------- */
+
+.unit-grid {
+  position: absolute;
+  transform-origin: top left;
+  font-family: "DejaVu Sans Mono", "Menlo", "Consolas", monospace;
+  letter-spacing: -0.02em;
+}
+
+.unit-grid .t { position: absolute; white-space: pre; line-height: 1; }
+.unit-grid .b { position: absolute; border: 1px solid var(--u-cyn, #46d7ff); }
+.unit-grid .f { position: absolute; }
+
+/* Map geometry is one SVG: coastlines and airspace are far too many segments
+   to position individually. */
+.unit-grid .mapsvg { position: absolute; overflow: visible; }
+.unit-grid .mapsvg path,
+.unit-grid .mapsvg circle { fill: none; vector-effect: non-scaling-stroke; }
+
+.unit-grid .m-coast { stroke: #6f8ea8; stroke-width: 0.6; }
+.unit-grid .m-lake { stroke: #4a7fd4; stroke-width: 0.6; }
+.unit-grid .m-as { stroke-width: 0.6; }
+
+/* Sectional conventions: Class B and D blue, C magenta, E surface dashed. */
+.unit-grid .m-as-B { stroke: #4aa3ff; stroke-width: 0.8; }
+.unit-grid .m-as-C { stroke: #d06bd0; }
+.unit-grid .m-as-D { stroke: #4aa3ff; stroke-dasharray: 2 1.5; }
+.unit-grid .m-as-E { stroke: #8f6fb5; stroke-dasharray: 1 1.5; }
+
+.unit-grid .m-ring { stroke: var(--u-cyn, #46d7ff); stroke-width: 0.6; opacity: 0.55; }
+.unit-grid .m-leg { stroke: var(--u-grn, #35ff35); stroke-width: 1; }
+.unit-grid .m-leg.act { stroke: var(--u-mag, #ff4cf0); stroke-width: 1.6; }
+
+/* --- clickable regions ---------------------------------------------------- */
+
+/* The overlay must not swallow taps meant for a touchscreen unit's display. */
+.unit-hits { position: absolute; inset: 0; pointer-events: none; }
+
+.unit-hits .hit {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 90ms ease;
+}
+
+.unit-hits .hit:hover { background: rgb(255 255 255 / 0.16); }
+.unit-hits .hit:focus-visible { outline: 2px solid var(--u-amb, #ffd33d); outline-offset: 1px; }
+.unit-hits .hit.active { background: rgb(255 211 61 / 0.55); }
+
+/* --- touchscreen units ---------------------------------------------------- */
+
+.unit-grid[data-family='GTN'] {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  letter-spacing: 0;
+  background: #05070b;
+}
+
+.unit-grid .gt {
+  position: absolute;
+  white-space: pre;
+  line-height: 1.15;
+  /* Labels sit over touch targets; never let them swallow a tap. */
+  pointer-events: none;
+}
+
+.unit-grid .growright {
+  font-size: 17px;
+  color: #35ff35;
+  font-weight: 700;
+  text-align: right;
+}
+
+.unit-grid .gpanel {
+  position: absolute;
+  border-radius: 6px;
+  background: #101722;
+  border: 1px solid #223047;
+}
+
+.unit-grid .gpanel.gbar {
+  background: linear-gradient(#16202e, #0d141d);
+  border-radius: 0;
+  border-width: 0 0 1px;
+}
+
+.unit-grid .gpanel.gside {
+  border-radius: 0;
+  border-width: 0 0 0 1px;
+}
+
+.unit-grid .gpanel.gfield {
+  background: #0b1119;
+  border-color: #35507a;
+}
+
+.unit-grid .gpanel.growrow {
+  background: #0c131c;
+  border-color: #1c2a3d;
+}
+
+.unit-grid .gpanel.gmsg {
+  background: #16202e;
+  border-color: #ffd33d;
+  border-width: 2px;
+}
+
+.unit-grid .gdot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+}
+
+.unit-grid .gbtn {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0;
+  border: 1px solid #2c3b54;
+  border-radius: 7px;
+  background: linear-gradient(#1b2636, #121a26);
+  color: #e8ecf3;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 80ms ease, transform 80ms ease;
+}
+
+.unit-grid .gbtn:hover {
+  background: linear-gradient(#243247, #18212f);
+}
+
+.unit-grid .gbtn:active {
+  transform: translateY(1px);
+  background: #2e3f59;
+}
+
+.unit-grid .gbtn-l {
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.unit-grid .gbtn-s {
+  font-size: 17px;
+  color: #46d7ff;
+}
+
+.unit-grid .gbtn.gfreq {
+  align-items: flex-start;
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 0 12px;
+}
+
+.unit-grid .gbtn.gfreq .gbtn-l {
+  color: #fff;
+  align-self: center;
+}
+
+.unit-grid .gbtn.gfreq .gbtn-s {
+  align-self: center;
+}
+
+.unit-grid .gbtn.gapp {
+  background: linear-gradient(#1e2b3d, #141d2a);
+}
+
+.unit-grid .gbtn.gkey {
+  background: linear-gradient(#222d3f, #16202d);
+  font-weight: 700;
+}
+
+.unit-grid .gbtn.gok {
+  background: linear-gradient(#1d5c2c, #14401f);
+  border-color: #2f8c46;
+}
+
+.unit-grid .gbtn.grow {
+  align-items: flex-start;
+  padding-left: 14px;
+}
+
+.unit-grid .gbtn.gdim {
+  opacity: 0.45;
+}
+
+#bezel .gbrand {
+  fill: #c8ccd3;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+#bezel .glbl {
+  fill: #e9e9e9;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-weight: 700;
+}

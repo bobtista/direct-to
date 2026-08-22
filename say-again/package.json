@@ -5,9 +5,8 @@
   "type": "module",
   "description": "ATC radio comms practice: real frequencies, real phraseology, radio-quality audio",
   "scripts": {
-    "start": "node tools/serve.mjs",
+    "start": "cd .. && node tools/serve.mjs",
     "test": "node --test test/*.test.mjs",
-    "build:airports": "node tools/build-airports.mjs",
-    "stop": "pkill -f 'say-again/tools/serve.mjs' || true"
+    "build:airports": "node tools/build-airports.mjs"
   }
 }

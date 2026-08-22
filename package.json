@@ -3,13 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A browser-based aviation GPS practice trainer: knob, key and touch work on the ground",
+  "description": "A browser-based GA cockpit trainer: the GPS box (Direct-To) and the radio (Say Again)",
   "scripts": {
     "start": "node tools/serve.mjs",
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test test/*.test.mjs say-again/test/*.test.mjs",
     "build:navdata": "node tools/build-navdata.mjs",
     "build:procedures": "node tools/build-procedures.mjs",
     "build:basemap": "node --max-old-space-size=6144 tools/build-basemap.mjs",
-    "stop": "pkill -f 'tools/serve.mjs' || pkill -f 'http.server 8765' || true"
+    "stop": "pkill -f 'tools/serve.mjs' || pkill -f 'http.server 8765' || true",
+    "test:gps": "node --test test/*.test.mjs",
+    "test:radio": "node --test say-again/test/*.test.mjs"
   }
 }

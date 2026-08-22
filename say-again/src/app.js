@@ -7,6 +7,7 @@ import {
 } from './scenario.js';
 import { grade, isCallup } from './grade.js';
 import { WRITTEN } from './phraseology.js';
+import { RadioStack, sameFreq } from './radiostack.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -36,6 +37,11 @@ const els = {
   bravoField: $('bravo-field'),
   peekSay: $('peek-say'),
   peekWhy: $('peek-why'),
+  cockpit: $('cockpit'),
+  stack: $('stack'),
+  stackUnits: $('stack-units'),
+  tunedState: $('tuned-state'),
+  freqWarn: $('freq-warn'),
 };
 
 // --- data -------------------------------------------------------------------
@@ -63,6 +69,73 @@ for (const a of data.airports.filter((x) => x.towered).slice(0, 800)) {
   o.value = a.id;
   o.label = `${a.spoken} — ${a.city ?? ''}`;
   els.airports.appendChild(o);
+}
+
+// --- the box ----------------------------------------------------------------
+//
+// The GPS unit is the same module Direct-To renders. Its waypoint database is
+// optional here: the radio works without it, and loading it just means the
+// screen has something useful on it.
+
+const waypoints = await fetch('../data/navdata.json')
+  .then((r) => (r.ok ? r.json() : null))
+  .then((d) => d?.waypoints ?? [])
+  .catch(() => []);
+
+const stack = new RadioStack({
+  mount: els.stack,
+  waypoints,
+  onChange: () => refreshTuned(),
+});
+
+for (const u of RadioStack.units) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.dataset.unit = u.id;
+  b.textContent = u.short;
+  b.title = u.name;
+  b.setAttribute('aria-pressed', String(u.id === 'GNS430'));
+  els.stackUnits.appendChild(b);
+}
+els.stackUnits.addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  btn.blur();
+  stack.setUnit(btn.dataset.unit);
+  for (const b of els.stackUnits.querySelectorAll('button')) {
+    b.setAttribute('aria-pressed', String(b.dataset.unit === btn.dataset.unit));
+  }
+  refreshTuned();
+});
+
+/**
+ * Compare what is tuned against what this step is on.
+ *
+ * Advisory by design: a wrong frequency does not block the exchange, it just
+ * says so. Blocking would stall practice on a fumbled knob twist.
+ */
+function refreshTuned() {
+  const s = currentStep();
+  if (!s?.freq) {
+    els.tunedState.textContent = '—';
+    els.tunedState.className = '';
+    els.freqWarn.hidden = true;
+    return;
+  }
+  const f = stack.frequencies;
+  if (stack.isActive(s.freq)) {
+    els.tunedState.textContent = `Tuned — active ${f.comActive}`;
+    els.tunedState.className = 'ok';
+    els.freqWarn.hidden = true;
+  } else if (stack.isStandby(s.freq)) {
+    els.tunedState.textContent = `In standby (${f.comStandby}) — flip-flop it across`;
+    els.tunedState.className = 'warn';
+    els.freqWarn.hidden = false;
+  } else {
+    els.tunedState.textContent = `Active ${f.comActive} — this step is on ${s.freq}`;
+    els.tunedState.className = 'warn';
+    els.freqWarn.hidden = false;
+  }
 }
 
 // --- audio ------------------------------------------------------------------
@@ -159,6 +232,12 @@ function brief() {
   step = 0;
   els.log.innerHTML = '';
   els.panel.hidden = false;
+  els.cockpit.hidden = false;
+  // Start on the first frequency with the next one already in standby, the way
+  // you would set up before taxi.
+  const first = scenario.steps[0]?.freq;
+  const second = scenario.steps.find((x) => x.freq !== first)?.freq;
+  stack.setCom(first, second ?? first);
 
   const bits = [
     scenario.title,
@@ -187,6 +266,7 @@ function showStep() {
   els.prompt.textContent = s.prompt;
   els.example.hidden = true;
   refreshPeek();
+  refreshTuned();
   els.typedText.value = '';
   refreshControls();
 
@@ -305,6 +385,16 @@ function submitReadback(said) {
  */
 function report(result, s) {
   log(result.safe ? (result.pass ? 'good' : 'warn') : 'bad', result.summary);
+
+  // Advisory: say it, do not block on it.
+  if (s.freq && !stack.isActive(s.freq)) {
+    log(
+      'note',
+      stack.isStandby(s.freq)
+        ? `${s.freq} is in standby — flip-flop it across before you transmit.`
+        : `You are transmitting on ${stack.frequencies.comActive}; this exchange is on ${s.freq}.`
+    );
+  }
 
   if (result.pass) {
     s.attempts = 0;
@@ -442,6 +532,7 @@ window.addEventListener('keyup', (e) => {
 // Exposed for the console and for tests. Automated runs should call
 // setMuted(true) first — this app makes noise by design.
 window.__sayagain = {
+  stack,
   get scenario() { return scenario; },
   get step() { return step; },
   handleInput,
