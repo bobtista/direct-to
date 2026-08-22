@@ -1,0 +1,159 @@
+:root {
+  --ink: #e8ecf3;
+  --dim: #8a93a6;
+  --bg: #12151b;
+  --panel: #171b23;
+  --line: #2a3040;
+  --grn: #35c759;
+  --amb: #ffd33d;
+  --red: #ff5f56;
+  --cyn: #46d7ff;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 24px 16px 64px;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  display: flex;
+  justify-content: center;
+}
+
+main { width: min(880px, 100%); }
+
+#brand { display: flex; align-items: baseline; gap: 12px; margin: 0 0 20px; }
+#brand h1 { margin: 0; font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+#brand p { margin: 0; font-size: 13px; color: var(--dim); }
+
+#setup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); }
+
+input, select {
+  background: #10141b;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  border-radius: 7px;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 14px;
+  min-width: 108px;
+}
+
+button {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: #232936;
+  color: var(--ink);
+  border-radius: 7px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) { background: #2c3444; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+#brief { background: #1d4ed8; border-color: #2563eb; font-weight: 600; }
+#brief:hover { background: #2563eb; }
+
+#banner { color: var(--cyn); font-size: 13px; margin: 14px 2px; }
+
+#radio-panel {
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+#tuned { display: flex; align-items: baseline; gap: 10px; }
+#tuned .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); }
+#tuned strong {
+  font-family: "DejaVu Sans Mono", Menlo, monospace;
+  font-size: 26px;
+  color: var(--grn);
+  letter-spacing: 0.02em;
+}
+#facility { color: var(--dim); font-size: 14px; }
+
+#prompt { margin: 12px 0 14px; }
+
+#controls { display: flex; gap: 10px; flex-wrap: wrap; }
+
+#ptt {
+  background: #7f1d1d;
+  border-color: #991b1b;
+  font-weight: 600;
+  min-width: 160px;
+  touch-action: none;
+  user-select: none;
+}
+#ptt:hover:not(:disabled) { background: #991b1b; }
+#ptt.keyed { background: var(--red); border-color: var(--red); color: #1a0000; }
+
+#typed { display: flex; gap: 8px; margin-top: 12px; }
+#typed input { flex: 1; }
+
+#example {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--cyn);
+  background: #10141b;
+  border-radius: 0 7px 7px 0;
+  font-size: 14px;
+  color: #cfe3f5;
+}
+
+#log { margin-top: 18px; display: flex; flex-direction: column; gap: 6px; }
+
+.entry {
+  padding: 8px 12px;
+  border-radius: 7px;
+  font-size: 14px;
+  border-left: 3px solid var(--line);
+  background: var(--panel);
+}
+.entry.atc   { border-left-color: var(--cyn); }
+.entry.pilot { border-left-color: #6b7280; color: #cbd5e1; }
+.entry.good  { border-left-color: var(--grn); color: #b7f3c6; }
+.entry.warn  { border-left-color: var(--amb); color: #ffe9a3; }
+.entry.bad   { border-left-color: var(--red); color: #ffc4c0; }
+.entry.note  { border-left-color: #6b7280; color: var(--dim); font-size: 13px; }
+
+#help {
+  margin-top: 26px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+#help summary { cursor: pointer; font-weight: 600; }
+#help .cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 4px 32px;
+  margin-top: 12px;
+}
+#help h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cyn);
+}
+#help ol { margin: 0; padding-left: 20px; }
+#help p { margin: 0 0 10px; font-size: 14px; color: #c3ccdb; }

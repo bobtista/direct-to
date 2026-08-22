@@ -1,0 +1,13 @@
+{
+  "name": "say-again",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "ATC radio comms practice: real frequencies, real phraseology, radio-quality audio",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "test": "node --test test/*.test.mjs",
+    "build:airports": "node tools/build-airports.mjs",
+    "stop": "pkill -f 'say-again/tools/serve.mjs' || true"
+  }
+}
