@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   digits, frequency, heading, squawk, altitude, runway, altimeter, wind,
-  callsign, normalize, contains,
+  callsign, normalize, contains, phonetic, SPOKEN, WRITTEN,
 } from '../src/phraseology.js';
 
 test('digits are spoken individually, with niner for 9', () => {
@@ -97,4 +97,12 @@ test('a readback missing the hold short instruction is detectable', () => {
   const bad = 'runway three five, five sierra papa';
   assert.ok(contains(good, 'hold short'));
   assert.ok(!contains(bad, 'hold short'));
+});
+
+test('a lone letter is always its phonetic word, never the letter name', () => {
+  // Reading "with T" out loud is wrong on the radio, so neither form shows it.
+  assert.equal(SPOKEN.atis('T'), 'tango');
+  assert.equal(WRITTEN.atis('T'), 'Tango');
+  assert.equal(phonetic('q'), 'quebec');
+  assert.equal(phonetic('Z'), 'zulu');
 });

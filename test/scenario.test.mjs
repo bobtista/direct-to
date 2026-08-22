@@ -146,3 +146,17 @@ test('grading still works against the written or spoken form', () => {
   assert.ok(grade(spelled, ground.requires, ac).pass, 'spoken readback');
   assert.ok(grade(`runway ${s.rwy}, hold short, 5SP`, ground.requires, ac).pass, 'typed readback');
 });
+
+test('the ATIS code is spoken and shown phonetically', () => {
+  const s = departureWithFlightFollowing({
+    home: byId.get('KOWD'),
+    dest: byId.get('KPYM'),
+    ac,
+    wx: { ...wx, atis: 'T' },
+  });
+  const ground = s.steps.find((x) => x.id === 'ground');
+  assert.match(ground.example, /information Tango/, 'the example shows the word');
+  assert.match(ground.exampleSpeech, /information tango/, 'and says it');
+  assert.ok(!/with T\b/.test(ground.example), 'never a bare letter');
+  assert.ok(!/with T\b/.test(ground.prompt), 'not in the prompt either');
+});

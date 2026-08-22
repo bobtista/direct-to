@@ -28,6 +28,10 @@ const PHONETIC = {
   X: 'xray', Y: 'yankee', Z: 'zulu',
 };
 
+/** A single letter as its phonetic word: "T" -> "tango". */
+export const phonetic = (letter) =>
+  PHONETIC[String(letter).toUpperCase()] ?? String(letter).toLowerCase();
+
 /** Each character spoken separately: "725SP" -> "seven two five sierra papa". */
 export function digits(value) {
   return [...String(value)]
@@ -210,6 +214,8 @@ export const SPOKEN = {
   wind,
   callsign,
   vfr: 'V-F-R',
+  // An ATIS code is a letter of the phonetic alphabet, never a letter name.
+  atis: (letter) => phonetic(letter),
 };
 
 const comma = (n) => Number(n).toLocaleString('en-US');
@@ -235,4 +241,10 @@ export const WRITTEN = {
     return `${prefix ? `${prefix} ` : ''}${shown}`;
   },
   vfr: 'VFR',
+  // Written the same way it is said — a broadcast is "Information Tango", and
+  // showing a bare "T" would invite reading it out as the letter.
+  atis: (letter) => {
+    const word = phonetic(letter);
+    return word.charAt(0).toUpperCase() + word.slice(1);
+  },
 };

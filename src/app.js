@@ -133,7 +133,7 @@ function brief() {
   els.panel.hidden = false;
   els.banner.textContent =
     `${scenario.title} · wind ${String(scenario.wx.windDir).padStart(3, '0')} at ` +
-    `${scenario.wx.windKt} · altimeter ${scenario.wx.altimeter} · ATIS ${scenario.wx.atis} · ` +
+    `${scenario.wx.windKt} · altimeter ${scenario.wx.altimeter} · information ${WRITTEN.atis(scenario.wx.atis)} · ` +
     `runway ${scenario.rwy} · you are ${WRITTEN.callsign(ac)}`;
   showStep();
 }

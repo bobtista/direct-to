@@ -13,7 +13,7 @@ required to read back.
 npm start
 ```
 
-Then open <http://localhost:8770>. `npm test` runs 40 tests with no browser.
+Then open <http://localhost:8770>. `npm test` runs 42 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
 
@@ -57,6 +57,10 @@ A transmission is built once and rendered twice. The radio hears
 *"Skyhawk 5SP, runway 17"*. `SPOKEN` and `WRITTEN` in `src/phraseology.js`
 implement the same interface, so a scenario is written once against a renderer
 and never has to spell anything out itself.
+
+The exception is anything the written form would mispronounce. `N725SP` reads
+out correctly on sight; a bare `T` does not — nobody says "with T". So an ATIS
+code is **Tango** in both forms, matching the broadcast itself.
 
 ## Why it sounds like a radio
 
