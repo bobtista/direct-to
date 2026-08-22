@@ -83,3 +83,52 @@ test('non-critical items are suggested, not failed', () => {
   assert.equal(r.pass, false);
   assert.match(r.summary, /Also worth reading back/);
 });
+
+// --- regressions ------------------------------------------------------------
+
+test('"cleared for take off" is accepted, spaced or not', () => {
+  const required = [
+    req.runway('28'),
+    { key: 'clearedTakeoff', value: 'cleared for takeoff', label: 'cleared for takeoff', critical: true },
+  ];
+  for (const said of [
+    'cleared for take off runway 28 Skyhawk 5SP',
+    'cleared for takeoff runway 28, 5SP',
+    'runway two eight, cleared for takeoff, five sierra papa',
+  ]) {
+    assert.ok(grade(said, required, AC).pass, `should pass: ${said}`);
+  }
+});
+
+test('ordinary words are not mistaken for digits', () => {
+  // "for" and "to" used to normalise to 4 and 2, wrecking plain phrases.
+  const climb = grade('climb to three thousand, five sierra papa', [req.altitude(3000)], AC);
+  assert.ok(climb.pass, climb.summary);
+
+  const taxi = grade('taxi to runway two eight, hold short, five sierra papa', [
+    req.runway('28'),
+    req.holdShort('28'),
+  ], AC);
+  assert.ok(taxi.pass, taxi.summary);
+});
+
+test('an altitude needs the whole number, not just its first digit', () => {
+  const required = [req.altitude(3000)];
+  assert.ok(grade('maintain three thousand, five sierra papa', required, AC).pass);
+  assert.ok(grade('maintain 3000, five sierra papa', required, AC).pass);
+  // A stray 3 elsewhere must not satisfy it.
+  assert.equal(grade('runway three, five sierra papa', required, AC).pass, false);
+});
+
+test('altitudes with hundreds are matched in either form', () => {
+  const required = [req.altitude(4500)];
+  assert.ok(grade('four thousand five hundred, five sierra papa', required, AC).pass);
+  assert.ok(grade('4500, five sierra papa', required, AC).pass);
+  assert.equal(grade('four thousand, five sierra papa', required, AC).pass, false);
+});
+
+test('"oh" counts as zero next to digits and not otherwise', () => {
+  assert.ok(grade('altimeter three oh one two, five sierra papa', [req.altimeter('30.12')], AC).items[0].ok);
+  const r = grade('oh, say again, five sierra papa', [req.runway('28')], AC);
+  assert.equal(r.pass, false, '"oh" on its own is not a zero');
+});

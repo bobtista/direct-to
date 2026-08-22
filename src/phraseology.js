@@ -121,11 +121,18 @@ export const tailOf = (ac) => ac.tail.toUpperCase();
 
 // --- normalising what the pilot said ---------------------------------------
 
+// Only spellings that cannot be ordinary English. Homophones like "to", "for",
+// "won" and "ate" were here to catch recogniser slips, but they wrecked plain
+// phrases: "cleared for takeoff" became "cleared 4 takeoff" and never matched,
+// and "climb to three thousand" became "climb 23 thousand".
 const WORD_TO_DIGIT = {
-  zero: '0', oh: '0', one: '1', won: '1', two: '2', to: '2', too: '2',
-  three: '3', tree: '3', four: '4', fower: '4', for: '4', five: '5', fife: '5',
-  six: '6', seven: '7', eight: '8', ate: '8', nine: '9', niner: '9',
+  zero: '0', one: '1', two: '2', three: '3', tree: '3', four: '4', fower: '4',
+  five: '5', fife: '5', six: '6', seven: '7', eight: '8', nine: '9', niner: '9',
 };
+
+/** Words that are unambiguously a digit, used to judge "oh" by its neighbours. */
+const DIGITISH = new Set([...Object.keys(WORD_TO_DIGIT)]);
+const isDigitish = (w) => w !== undefined && (DIGITISH.has(w) || /^\d+$/.test(w));
 
 const WORD_TO_LETTER = Object.fromEntries(
   Object.entries(PHONETIC).map(([letter, word]) => [word, letter])
@@ -153,10 +160,17 @@ export function normalize(text) {
     .filter(Boolean);
 
   const out = [];
-  for (const w of words) {
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
     // "point"/"decimal" separate a frequency but carry nothing to grade, and
     // dropping them lets "one two four point one" match "124.1".
     if (w === 'point' || w === 'decimal') continue;
+    // "oh" is zero in "three oh one two" but an interjection everywhere else,
+    // so it only counts as a digit next to one.
+    if (w === 'oh') {
+      out.push(isDigitish(words[i - 1]) || isDigitish(words[i + 1]) ? '0' : ' oh ');
+      continue;
+    }
     if (WORD_TO_DIGIT[w] !== undefined) out.push(WORD_TO_DIGIT[w]);
     else if (WORD_TO_LETTER[w]) out.push(WORD_TO_LETTER[w]);
     else if (/^[a-z]$/.test(w)) out.push(w.toUpperCase()); // a spelled letter

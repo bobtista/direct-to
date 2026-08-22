@@ -49,9 +49,10 @@ const BAD_HABITS = [
  */
 export function grade(said, required = [], ctx = {}) {
   const heard = normalize(said);
+  // A requirement may list several acceptable forms; any one of them counts.
   const items = required.map((r) => ({
     ...r,
-    ok: contains(said, r.value),
+    ok: [].concat(r.value).some((v) => contains(said, v)),
   }));
 
   const missed = items.filter((i) => !i.ok);
@@ -101,6 +102,20 @@ function summarise({ pass, missed, missedCritical, habits }) {
 // Small helpers so a scenario can declare what it expects without repeating the
 // "is this mandatory" judgement each time.
 
+/** Every written shape an altitude readback might legitimately take. */
+export function altitudeForms(ft) {
+  const n = Math.round(ft);
+  const forms = [String(n)];
+  if (n >= 1000) {
+    const thousands = Math.floor(n / 1000);
+    const hundreds = Math.round((n % 1000) / 100);
+    forms.push(`${thousands}thousand${hundreds ? `${hundreds}hundred` : ''}`);
+  } else if (n >= 100) {
+    forms.push(`${Math.round(n / 100)}hundred`);
+  }
+  return forms;
+}
+
 export const req = {
   runway: (rwy) => ({ key: 'runway', value: rwy, label: `runway ${rwy}`, critical: true }),
   holdShort: (rwy) => ({
@@ -111,7 +126,10 @@ export const req = {
   }),
   altitude: (ft) => ({
     key: 'altitude',
-    value: String(ft).replace(/000$/, ''),
+    // "three thousand five hundred", "3500" and "three five zero zero" all
+    // count. Matching on the leading digit alone would pass any readback that
+    // merely contained that digit somewhere.
+    value: altitudeForms(ft),
     label: `${ft} ft`,
     critical: true,
   }),

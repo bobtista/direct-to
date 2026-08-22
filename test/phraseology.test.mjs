@@ -73,8 +73,15 @@ test('spoken and written readbacks normalise to the same thing', () => {
 
 test('normalising survives how a recogniser might spell it', () => {
   assert.equal(normalize('tree fife'), '35');
-  assert.equal(normalize('to too two'), '222');
   assert.equal(normalize('alfa juliett x-ray'), 'AJX');
+});
+
+test('English homophones stay words, because phraseology is full of them', () => {
+  // "to" and "for" were mapped to 2 and 4 to catch recogniser slips. That cost
+  // far more than it bought: "cleared for takeoff" stopped matching entirely.
+  assert.equal(normalize('to too two'), 'TO TOO 2');
+  assert.equal(normalize('cleared for takeoff'), 'CLEARED FOR TAKEOFF');
+  assert.equal(normalize('climb to three thousand'), 'CLIMB TO 3 THOUSAND');
 });
 
 test('contains finds required elements however they were said', () => {

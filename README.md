@@ -13,7 +13,7 @@ required to read back.
 npm start
 ```
 
-Then open <http://localhost:8770>. `npm test` runs 34 tests with no browser.
+Then open <http://localhost:8770>. `npm test` runs 40 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
 
@@ -43,8 +43,12 @@ Habits are flagged separately without failing you:
 - Dropping your callsign
 
 Grading works on meaning, not spelling: *"one two four point one"* and
-*"124.1"* are the same thing, and so are *"niner"* and *"9"*. You can type a
-readback the short way or say it the long way — both are graded the same.
+*"124.1"* are the same thing, and so are *"niner"* and *"9"*, *"cleared for take
+off"* and *"cleared for takeoff"*. You can type a readback the short way or say
+it the long way — both are graded the same.
+
+What it does **not** do is guess at homophones. "to" and "for" stay words:
+mapping them to 2 and 4 to catch recogniser slips broke far more than it fixed.
 
 ## Two forms of every transmission
 
