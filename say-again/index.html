@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Say Again</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main>
+      <header id="brand">
+        <h1>Say Again</h1>
+        <p>ATC radio practice</p>
+      </header>
+
+      <section id="setup">
+        <div class="field">
+          <label for="kind">Scenario</label>
+          <select id="kind">
+            <option value="departure">Towered departure + flight following</option>
+            <option value="untowered">Untowered — pattern and return</option>
+            <option value="classb">Class B transition</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="home">Departing</label>
+          <input id="home" list="airports" value="KOWD" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label for="dest">To</label>
+          <input id="dest" list="airports" value="KPYM" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="field" id="bravo-field" hidden>
+          <label for="bravo">Through</label>
+          <input id="bravo" list="airports" value="KBOS" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label for="tail">Tail</label>
+          <input id="tail" value="N725SP" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label for="type">Type</label>
+          <select id="type">
+            <option value="C172">C172 Skyhawk</option>
+            <option value="PA28">PA-28 Warrior</option>
+            <option value="C152">C152</option>
+            <option value="SR20">SR20 Cirrus</option>
+            <option value="">No type (November)</option>
+          </select>
+        </div>
+        <button id="brief" type="button">Brief scenario</button>
+        <datalist id="airports"></datalist>
+      </section>
+
+      <p id="banner">Pick your departure and destination, then brief the scenario.</p>
+
+      <section id="radio-panel" hidden>
+        <div id="tuned">
+          <span class="lbl">Frequency</span>
+          <strong id="freq">---.---</strong>
+          <span id="facility">—</span>
+        </div>
+        <p id="prompt"></p>
+
+        <div id="controls">
+          <button id="ptt" type="button" disabled>Push to talk</button>
+          <button id="type-instead" type="button">Type instead</button>
+          <button id="hear" type="button">Say again</button>
+          <button id="show" type="button">Peek</button>
+          <button id="mute" type="button" aria-pressed="false">Mute</button>
+        </div>
+
+        <form id="typed" hidden>
+          <input id="typed-text" placeholder="Type what you would transmit…" autocomplete="off" />
+          <button type="submit">Transmit</button>
+        </form>
+
+        <div id="example" hidden>
+          <h4>Say something like</h4>
+          <p id="peek-say"></p>
+          <h4>Why</h4>
+          <p id="peek-why"></p>
+        </div>
+      </section>
+
+      <section id="log" aria-live="polite"></section>
+
+      <details id="help">
+        <summary>How this works, and what it grades</summary>
+        <div class="cols">
+          <div>
+            <h3>The loop</h3>
+            <ol>
+              <li>Brief a scenario — real field, real frequencies, random wind and ATIS</li>
+              <li>Make your call, by voice or typed</li>
+              <li>The controller answers over a simulated VHF channel</li>
+              <li>Read back what you are required to read back</li>
+              <li>You get told exactly what you missed</li>
+            </ol>
+          </div>
+          <div>
+            <h3>What counts as required</h3>
+            <p>
+              Runway assignments, hold short instructions, assigned altitudes and
+              headings, squawk codes and frequency changes are mandatory readbacks
+              (AIM 4-4-7). Miss one and the step is marked unsafe, not just
+              imperfect.
+            </p>
+            <p>
+              Habits are flagged separately: "roger" in place of a readback,
+              filler words, "with you", and dropping your callsign.
+            </p>
+          </div>
+        </div>
+      </details>
+    </main>
+
+    <script type="module" src="src/app.js"></script>
+  </body>
+</html>
