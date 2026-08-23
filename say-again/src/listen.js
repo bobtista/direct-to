@@ -92,9 +92,10 @@ export class Listener {
     this._chunks = [];
     this._format = null;
 
-    this._heard = false;
-    this._reported = false;
+    this._finals = [];
     this._interim = '';
+    this._reported = false;
+    this._lastAlternatives = null;
 
     const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition;
     this._sr = SR ? new SR() : null;
@@ -108,10 +109,15 @@ export class Listener {
       this._sr.continuous = true;
       this._sr.maxAlternatives = 3;
 
+      // One press is one transmission. With `continuous` on, Chrome finalises
+      // each phrase separately, so these have to be collected and sent as a
+      // whole when the key comes up — submitting each fragment as it arrived
+      // cut people off mid-call and graded the pieces as separate calls.
       this._sr.onstart = () => {
-        this._heard = false;
-        this._reported = false;
+        this._finals = [];
         this._interim = '';
+        this._reported = false;
+        this._lastAlternatives = null;
       };
       this._sr.onresult = (e) => this._browserResult(e);
       this._sr.onerror = (e) => {
@@ -127,16 +133,7 @@ export class Listener {
       this._sr.onend = () => {
         this.listening = false;
         this.onIdle();
-        // A draft is better than nothing: it is what was actually said, just
-        // not yet confirmed.
-        if (!this._heard && this._interim.trim()) {
-          this._heard = true;
-          this.onResult([this._interim.trim()], 'browser');
-          return;
-        }
-        if (!this._heard && !this._reported) {
-          this.onNote('Nothing came through — hold the key down while you speak.');
-        }
+        this._submit();
       };
       this.engine = 'browser';
     }
@@ -210,17 +207,38 @@ export class Listener {
   }
 
   _browserResult(e) {
-    // The same stream carries drafts and finished transcripts; only a final
-    // one counts as heard, but keep the latest draft as a fallback.
+    // The same stream carries drafts and finished phrases. Keep both: the
+    // finals are what was said, the trailing draft is the part Chrome had not
+    // committed to yet when the key came up.
     for (let i = e.resultIndex; i < e.results.length; i += 1) {
       const r = e.results[i];
       if (r.isFinal) {
-        this._heard = true;
-        this.onResult([...r].map((a) => a.transcript), 'browser');
+        this._finals.push(r[0]?.transcript ?? '');
+        this._lastAlternatives = [...r].map((a) => a.transcript);
+        this._interim = '';
       } else {
         this._interim = r[0]?.transcript ?? '';
       }
     }
+  }
+
+  /** Send the whole transmission, once. */
+  _submit() {
+    const text = [...this._finals, this._interim].join(' ').replace(/\s+/g, ' ').trim();
+    if (!text) {
+      if (!this._reported) {
+        this.onNote('Nothing came through — hold the key down while you speak.');
+      }
+      return;
+    }
+    // A single uninterrupted phrase still carries its alternatives, which the
+    // caller scores against what the step expects. A stitched-together one
+    // cannot, so it goes as the one reading we have.
+    const alts =
+      this._finals.length === 1 && !this._interim ? this._lastAlternatives ?? [text] : [text];
+    this._finals = [];
+    this._interim = '';
+    this.onResult(alts, 'browser');
   }
 
   // --- local ATC recogniser ---

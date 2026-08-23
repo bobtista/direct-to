@@ -15,7 +15,7 @@ From the repo root:
 npm start
 ```
 
-Then open <http://localhost:8765/say-again/>. `npm test` runs 84 tests with no browser.
+Then open <http://localhost:8765/say-again/>. `npm test` runs 88 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
 
@@ -97,9 +97,12 @@ Habits are flagged separately without failing you:
   readback ends with it, a callup puts it second, and an untowered self-announce
   ends with the field name
 
-Push-to-talk keeps the recogniser's draft transcript. A real press lasts a
-second or two, which is not long enough for Chrome to finalise anything, so
-throwing the draft away meant a call you actually made came back as silence.
+Push-to-talk collects the whole transmission before submitting it. Chrome
+finalises a long call in pieces — *"Norwood Ground"*, then your callsign, then
+the request — and each piece has to be stitched back together, including the
+last draft it had not committed to when the key came up. Sending the pieces as
+they arrive cuts you off: the first fragment gets graded as the whole call and
+the rest arrive as separate transmissions.
 
 When the recogniser mangles your callsign, the log shows what it heard so you
 can tell a bad transcription from a bad call. When it hears nothing at all —

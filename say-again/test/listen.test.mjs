@@ -66,12 +66,18 @@ test('only a locally served page looks for the local recogniser', () => {
 
 /** Stand-in for the browser's SpeechRecognition, so the state machine is testable. */
 class FakeSR {
-  start() { this.onstart?.(); }
+  start() { this._results = []; this.onstart?.(); }
   stop() { this.onend?.(); }
+  constructor() { this._results = []; }
   fire(transcript, isFinal = true) {
     const result = [{ transcript }];
     result.isFinal = isFinal;
-    this.onresult?.({ resultIndex: 0, results: [result] });
+    // Chrome keeps drafts at the same index and appends a new one once a
+    // phrase is final, which is what makes a long call arrive in pieces.
+    const at = this._results.length && !this._results.at(-1).isFinal
+      ? this._results.length - 1 : this._results.length;
+    this._results[at] = result;
+    this.onresult?.({ resultIndex: at, results: this._results });
   }
   fail(error) { this.onerror?.({ error }); }
 }
@@ -165,4 +171,33 @@ test('an unrecognised error says what it was instead of blaming the key', () => 
   l._sr.fail('language-not-supported');
   l._sr.stop();
   assert.deepEqual(notes, ['Speech recognition failed: language-not-supported.']);
+});
+
+test('one press is one transmission, however many phrases Chrome finalises', () => {
+  // With continuous recognition a long call arrives as several final phrases.
+  // Submitting each as it landed cut people off: the first fragment was graded
+  // as the whole call and the rest came back as separate transmissions.
+  const { l, results, notes } = listenerWithFakeSR();
+  l.start();
+  l._sr.fire('Norwood Ground', true);
+  l._sr.fire('Skyhawk seven two five sierra papa', true);
+  l._sr.fire('at the ramp with information tango, request taxi', true);
+  l._sr.stop();
+
+  assert.equal(results.length, 1, 'the pilot spoke once, so the app should hear once');
+  assert.equal(
+    results[0][0][0],
+    'Norwood Ground Skyhawk seven two five sierra papa at the ramp with information tango, request taxi',
+  );
+  assert.deepEqual(notes, []);
+});
+
+test('a trailing draft is kept on the end of the finished phrases', () => {
+  const { l, results } = listenerWithFakeSR();
+  l.start();
+  l._sr.fire('Norwood Ground, Skyhawk five sierra papa', true);
+  l._sr.fire('request taxi', false);
+  l._sr.stop();
+  assert.equal(results.length, 1);
+  assert.match(results[0][0][0], /five sierra papa request taxi$/);
 });
