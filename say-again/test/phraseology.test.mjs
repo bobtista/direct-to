@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   digits, frequency, heading, squawk, altitude, runway, altimeter, wind,
   callsign, normalize, contains, phonetic, SPOKEN, WRITTEN,
+  soundsLikeCallsign, bestAlternative,
 } from '../src/phraseology.js';
 
 test('digits are spoken individually, with niner for 9', () => {
@@ -105,4 +106,18 @@ test('a lone letter is always its phonetic word, never the letter name', () => {
   assert.equal(WRITTEN.atis('T'), 'Tango');
   assert.equal(phonetic('q'), 'quebec');
   assert.equal(phonetic('Z'), 'zulu');
+});
+
+test('the best recogniser alternative is the one matching what is expected', () => {
+  const alts = ['runway 70 hold short 50 pop', 'runway 17 hold short 5SP', 'runway seventeen'];
+  assert.equal(bestAlternative(alts, ['17', 'hold short', '5SP']), 'runway 17 hold short 5SP');
+  // With nothing to score against, take the recogniser's own first choice.
+  assert.equal(bestAlternative(alts, []), alts[0]);
+  assert.equal(bestAlternative(['only one'], ['17']), 'only one');
+});
+
+test('callsign leniency is confined to the end of the transmission', () => {
+  // "papa" early in a call is a taxiway, not the callsign.
+  assert.ok(!soundsLikeCallsign('taxi via papa sierra hold short runway 17', 'N725SP'));
+  assert.ok(soundsLikeCallsign('hold short runway 17, five sierra papa', 'N725SP'));
 });

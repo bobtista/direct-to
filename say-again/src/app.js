@@ -8,6 +8,7 @@ import {
 import { grade, isCallup } from './grade.js';
 import { WRITTEN } from './phraseology.js';
 import { RadioStack, sameFreq } from './radiostack.js';
+import { bestAlternative } from './phraseology.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -440,10 +441,14 @@ if (SR) {
   recognition.interimResults = false;
   recognition.maxAlternatives = 3;
   recognition.onresult = (e) => {
-    // Any alternative that mentions the callsign is likelier to be the real one.
+    // Recognisers often get aviation speech right in the second or third guess,
+    // so score them against what this step is actually expecting.
     const alts = [...e.results[0]].map((a) => a.transcript);
-    const tail = scenario?.ac.tail.slice(-3).toLowerCase() ?? '';
-    const best = alts.find((t) => t.toLowerCase().includes(tail[0] ?? '')) ?? alts[0];
+    const expected = (currentStep()?.requires ?? []).map((r) => r.value);
+    const best = bestAlternative(alts, expected);
+    if (alts.length > 1 && best !== alts[0]) {
+      log('note', `Heard "${alts[0].trim()}" — using the closer guess "${best.trim()}".`);
+    }
     handleInput(best);
   };
   recognition.onerror = (e) => log('note', `Microphone: ${e.error}`);

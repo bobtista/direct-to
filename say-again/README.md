@@ -15,7 +15,7 @@ From the repo root:
 npm start
 ```
 
-Then open <http://localhost:8765/say-again/>. `npm test` runs 54 tests with no browser.
+Then open <http://localhost:8765/say-again/>. `npm test` runs 60 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
 
@@ -95,6 +95,9 @@ Habits are flagged separately without failing you:
 - "Any traffic please advise", which the AIM specifically discourages
 - Dropping your callsign
 
+When the recogniser mangles your callsign, the log shows what it heard so you
+can tell a bad transcription from a bad call.
+
 Grading works on meaning, not spelling: *"one two four point one"* and
 *"124.1"* are the same thing, and so are *"niner"* and *"9"*, *"cleared for take
 off"* and *"cleared for takeoff"*. You can type a readback the short way or say
@@ -169,10 +172,12 @@ final say.
 - **Scripted, not conversational.** Replies are deterministic, which costs
   nothing and grades reliably, but will not react to an unusual request. An LLM
   controller is a later upgrade, not a prerequisite.
-- **Browser speech recognition is weak on aviation speak.** It mangles callsigns
-  and "niner". Typing is the reliable input until an ATC-tuned recogniser is
-  wired in — open corpora exist (ATCO2, UWB-ATCC, ATCOSIM) and fine-tuned
-  Whisper models trained on them are the obvious fix.
+- **Browser speech recognition is weak on aviation speak.** "Five sierra papa"
+  comes back as "50 pop". Two things soften that: the recogniser's alternative
+  guesses are scored against what the step expects rather than taking the first
+  one, and the callsign check tolerates known mishearings. Neither fixes the
+  transcription itself — an ATC-tuned recogniser is the real answer, and the
+  open corpora for it exist (ATCO2, UWB-ATCC, ATCOSIM).
 - **Frequency data has holes.** Some fields carry no frequencies at all in
   OurAirports, so scenario coverage is uneven.
 - **`SpeechSynthesis` cannot route into Web Audio**, so the channel effect plays

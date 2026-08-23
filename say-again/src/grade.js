@@ -8,7 +8,7 @@
 //
 // No DOM, so it runs under plain node.
 
-import { contains, normalize } from './phraseology.js';
+import { contains, normalize, soundsLikeCallsign } from './phraseology.js';
 
 /**
  * Is this just a callup — "Boston Approach, Skyhawk 725SP" — rather than a
@@ -76,7 +76,10 @@ const BAD_HABITS = [
   },
   {
     id: 'no-callsign',
-    test: (said, req, ctx) => ctx?.tail && !contains(said, ctx.tail.slice(-3)),
+    // Lenient on purpose: browser speech recognition mangles the phonetic
+    // alphabet, and failing a correct call because "papa" came back as "pop"
+    // teaches nothing.
+    test: (said, req, ctx) => ctx?.tail && !soundsLikeCallsign(said, ctx.tail),
     note: 'Every transmission ends with your callsign.',
   },
 ];

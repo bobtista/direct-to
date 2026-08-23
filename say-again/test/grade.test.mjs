@@ -132,3 +132,43 @@ test('"oh" counts as zero next to digits and not otherwise', () => {
   const r = grade('oh, say again, five sierra papa', [req.runway('28')], AC);
   assert.equal(r.pass, false, '"oh" on its own is not a zero');
 });
+
+// --- speech recognition mangling --------------------------------------------
+
+test('a correct readback is not failed because the recogniser mangled the callsign', () => {
+  // Real transcription from push-to-talk: "five sierra papa" came back as
+  // "50 pop". The call was right; the transcription was not.
+  const said = 'taxi to Runway 17 via Alpha hold short Runway 17 Skyhawk 50 pop';
+  const r = grade(said, [req.runway('17'), req.holdShort('17')], AC);
+  assert.ok(r.pass, r.summary);
+  assert.equal(r.habits.length, 0, 'no callsign complaint');
+});
+
+test('common phonetic mishearings still count as a callsign', () => {
+  const required = [req.runway('17')];
+  for (const tail of [
+    'runway 17, five sierra papa',
+    'runway 17, five sarah papa',
+    'runway 17, 5 sierra poppa',
+    'runway 17, 50 pop',
+    'runway 17, 5SP',
+    'runway 17, N725SP',
+  ]) {
+    const r = grade(tail, required, AC);
+    assert.ok(
+      !r.habits.some((h) => h.id === 'no-callsign'),
+      `should accept the callsign in: ${tail}`
+    );
+  }
+});
+
+test('leniency does not extend to actually omitting the callsign', () => {
+  const r = grade('runway 17, hold short', [req.runway('17'), req.holdShort('17')], AC);
+  assert.ok(r.safe, 'the required items were there');
+  assert.ok(r.habits.some((h) => h.id === 'no-callsign'), r.summary);
+});
+
+test('a readback that is wrong is still wrong, however it was transcribed', () => {
+  const r = grade('taxi via alpha, Skyhawk 50 pop', [req.runway('17'), req.holdShort('17')], AC);
+  assert.equal(r.safe, false, 'no hold short, no runway — mangling is no excuse');
+});

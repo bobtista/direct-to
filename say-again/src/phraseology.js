@@ -248,3 +248,106 @@ export const WRITTEN = {
     return word.charAt(0).toUpperCase() + word.slice(1);
   },
 };
+
+// --- coping with speech recognition ------------------------------------------
+//
+// Browser recognisers are trained on ordinary English and mangle the phonetic
+// alphabet: "five sierra papa" comes back as "50 pop". That is a transcription
+// problem, not a pilot problem, so the callsign check tolerates it rather than
+// failing a correct transmission.
+//
+// This tolerance is deliberately confined to the callsign. Loosening the
+// general matcher is how "cleared for takeoff" got broken once already.
+
+/** What a recogniser tends to produce instead of each phonetic letter. */
+const MISHEARD = {
+  A: ['alpha', 'alfa', 'alfalfa'],
+  B: ['bravo', 'bravado'],
+  C: ['charlie', 'charley', 'charly'],
+  D: ['delta'],
+  E: ['echo', 'eco'],
+  F: ['foxtrot', 'fox', 'foxtrap'],
+  G: ['golf', 'gulf'],
+  H: ['hotel'],
+  I: ['india', 'indio'],
+  J: ['juliet', 'juliett', 'juliette', 'julieta'],
+  K: ['kilo', 'keelo'],
+  L: ['lima', 'leema', 'limo'],
+  M: ['mike', 'mic'],
+  N: ['november'],
+  O: ['oscar', 'oskar'],
+  P: ['papa', 'poppa', 'pop', 'popper', 'pappa', 'pa'],
+  Q: ['quebec', 'kebec'],
+  R: ['romeo'],
+  S: ['sierra', 'sarah', 'sara', 'cierra', 'serra', 'sienna'],
+  T: ['tango', 'mango'],
+  U: ['uniform', 'unicorn'],
+  V: ['victor', 'vector'],
+  W: ['whiskey', 'whisky'],
+  X: ['xray', 'exray'],
+  Y: ['yankee', 'yanky'],
+  Z: ['zulu', 'zoolu'],
+};
+
+const HEARD_AS = {};
+for (const [letter, words] of Object.entries(MISHEARD)) {
+  for (const w of words) HEARD_AS[w] = letter;
+}
+
+/**
+ * Did the pilot end the transmission with something callsign-shaped?
+ *
+ * Compares the tail of what was heard against the last three characters of the
+ * registration, allowing one character to have been lost — which is what
+ * happens when "sierra" is transcribed as part of a number.
+ */
+export function soundsLikeCallsign(said, tail) {
+  const want = String(tail).toUpperCase().replace(/^N/, '').slice(-3);
+  if (!want) return false;
+
+  // Only the end of the transmission: the callsign goes last.
+  const words = String(said).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+  const chars = words
+    .slice(-6)
+    .flatMap((w) => {
+      if (HEARD_AS[w]) return [HEARD_AS[w]];
+      // A typed callsign arrives whole ("5SP", "725SP"); spread it out. Only
+      // tokens carrying a digit, so "runway" is not read as R-U-N-W-A-Y.
+      if (/\d/.test(w)) return [...w.toUpperCase()];
+      if (/^[a-z]$/.test(w)) return [w.toUpperCase()];
+      return [];
+    })
+    .join('');
+
+  // Subsequence match, tolerating one miss.
+  let missed = 0;
+  let at = 0;
+  for (const c of want) {
+    const found = chars.indexOf(c, at);
+    if (found === -1) missed += 1;
+    else at = found + 1;
+  }
+  return missed <= 1;
+}
+
+/**
+ * Of several recogniser guesses, the one that best fits what was expected.
+ *
+ * Recognisers often get aviation speech right in the second or third
+ * alternative, so scoring them against the required elements beats taking the
+ * first every time.
+ */
+export function bestAlternative(alternatives, expectedValues = []) {
+  const alts = [...alternatives].filter(Boolean);
+  if (alts.length < 2 || !expectedValues.length) return alts[0] ?? '';
+  let best = alts[0];
+  let bestScore = -1;
+  for (const alt of alts) {
+    const score = expectedValues.filter((v) => [].concat(v).some((x) => contains(alt, x))).length;
+    if (score > bestScore) {
+      bestScore = score;
+      best = alt;
+    }
+  }
+  return best;
+}
