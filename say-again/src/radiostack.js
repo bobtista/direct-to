@@ -127,6 +127,20 @@ export class RadioStack {
     return sameFreq(this.frequencies.comStandby, mhz);
   }
 
+  /**
+   * Put the aeroplane where the scenario says it is.
+   *
+   * Without this the box sits at its default position in Virginia, so a
+   * Direct-To from a Boston-area field reads a few hundred miles and the map
+   * shows empty ocean.
+   */
+  setPosition({ lat, lon }, track) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    this.gns.pos = { lat, lon };
+    if (Number.isFinite(track)) this.gns.track = track;
+    this.render();
+  }
+
   /** Preset the box, for starting a scenario already on the right frequency. */
   setCom(active, standby) {
     if (active) this.gns.com.active = Number(active).toFixed(3);

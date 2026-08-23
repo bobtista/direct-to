@@ -14,7 +14,7 @@ import { UNITS } from '../src/units.js';
 import { renderScreen } from '../src/screen.js';
 import { eventForRegion, KEYBOARD } from '../src/bezel.js';
 import { renderGtnScreen } from '../src/gtnscreen.js';
-import { setBasemap } from '../src/mapdraw.js';
+import { setBasemap, mapLayers } from '../src/mapdraw.js';
 
 const raw = JSON.parse(readFileSync(new URL('../data/navdata.json', import.meta.url), 'utf8'));
 const db = new NavData(raw.waypoints);
@@ -125,4 +125,33 @@ test('every keyboard binding targets a region some unit actually has', () => {
     assert.ok(known.has(id), `key "${key}" maps to ${id}, which no unit has`);
     assert.ok(eventForRegion(id), `key "${key}" maps to ${id}, which has no event`);
   }
+});
+
+test('the moving map draws nothing until a basemap is supplied', () => {
+  // The geometry lives in a module-level store. Say Again rendered an empty
+  // black box for exactly this reason: it never called setBasemap, so every
+  // layer came back empty however good the position was.
+  const opts = {
+    pos: { lat: 42.19, lon: -71.17 },
+    trk: 0,
+    range: 30,
+    box: { x: 0, y: 0, w: 240, h: 128 },
+  };
+
+  setBasemap({ coast: [], lakes: [], airspace: [] });
+  const bare = mapLayers(opts);
+  // The range ring is drawn from the aircraft, not from map data, so it shows
+  // up either way — it was the only thing on screen when this was broken.
+  assert.match(bare, /m-ring/);
+  assert.doesNotMatch(bare, /<path/, 'no basemap means no geography');
+
+  // Each feature is a bounding box for culling plus a flat lon/lat run.
+  setBasemap({
+    coast: [{ b: [-71.5, 42.0, -70.0, 42.5], p: [-71.5, 42.0, -70.5, 42.5, -70.0, 42.2] }],
+    lakes: [],
+    airspace: [],
+  });
+  assert.match(mapLayers(opts), /<path/, 'a coastline should reach the screen');
+
+  setBasemap({ coast: [], lakes: [], airspace: [] });
 });

@@ -15,7 +15,7 @@ From the repo root:
 npm start
 ```
 
-Then open <http://localhost:8765/say-again/>. `npm test` runs 79 tests with no browser.
+Then open <http://localhost:8765/say-again/>. `npm test` runs 81 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
 
@@ -218,6 +218,11 @@ heuristic over messy data, and `SPOKEN_OVERRIDES` in the build script has the
 final say.
 
 ## Known gaps
+
+- **The aeroplane does not move during a scenario.** It is placed at the
+  departure field when you brief, which is right for the ramp, the run-up and
+  the takeoff clearance, but the en-route steps still show you sitting on the
+  field. Good enough to tune and navigate against; not a flight model.
 
 - **No arrivals into a towered field yet.** Departure, untowered and Class B
   transition are built; the towered arrival — approach, tower, taxi in — is not.

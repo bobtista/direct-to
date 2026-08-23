@@ -4,10 +4,12 @@ import {
   untoweredPattern,
   classBTransition,
   randomWx,
+  bearing,
 } from './scenario.js';
 import { grade, isCallup } from './grade.js';
 import { WRITTEN, SPOKEN } from './phraseology.js';
 import { RadioStack, sameFreq } from './radiostack.js';
+import { setBasemap } from '../../src/mapdraw.js';
 import { bestAlternative } from './phraseology.js';
 import { Listener, hintFor, isLocalPage } from './listen.js';
 
@@ -80,10 +82,18 @@ for (const a of data.airports.filter((x) => x.towered).slice(0, 800)) {
 // optional here: the radio works without it, and loading it just means the
 // screen has something useful on it.
 
-const waypoints = await fetch('../data/navdata.json')
-  .then((r) => (r.ok ? r.json() : null))
-  .then((d) => d?.waypoints ?? [])
-  .catch(() => []);
+const [waypoints, basemap] = await Promise.all([
+  fetch('../data/navdata.json')
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => d?.waypoints ?? [])
+    .catch(() => []),
+  // Without this the map page draws an empty black box: the geometry lives in
+  // a module-level store that only Direct-To was filling in.
+  fetch('../data/basemap.json')
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null),
+]);
+setBasemap(basemap);
 
 const stack = new RadioStack({
   mount: els.stack,
@@ -231,6 +241,10 @@ function brief() {
   } else {
     scenario = departureWithFlightFollowing({ home, dest, ac, wx });
   }
+
+  // Fly from where the scenario says you are, not from the box's default
+  // position in Virginia.
+  stack.setPosition(home, bearing(home, dest));
 
   step = 0;
   els.log.innerHTML = '';

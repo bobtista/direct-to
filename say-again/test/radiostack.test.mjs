@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 
 import { sameFreq } from '../src/radiostack.js';
 import { GNS } from '../../src/gns.js';
-import { NavData } from '../../src/navdata.js';
+import { NavData, distanceNm } from '../../src/navdata.js';
 import { departureWithFlightFollowing, randomWx } from '../src/scenario.js';
 
 const { airports } = JSON.parse(
@@ -72,4 +72,33 @@ test('a scenario starts with its first two frequencies ready to use', () => {
   const second = s.steps.find((x) => x.freq !== first)?.freq;
   assert.ok(first && second, 'there is a frequency change to practise');
   assert.ok(!sameFreq(first, second), 'and they differ');
+});
+
+test('the box starts where the scenario does, not at its factory position', () => {
+  // Say Again never moved the aeroplane, so the unit sat at its default in
+  // Virginia: a Direct-To from a Boston-area field read 362 nm and the map
+  // showed empty ocean. The scenario's home field has to be applied.
+  const owd = byId.get('KOWD');
+  const ghg = byId.get('KGHG');
+  const factory = new GNS(new NavData([]));
+
+  assert.ok(
+    distanceNm(factory.pos, ghg) > 300,
+    'the default position is nowhere near Massachusetts — that is the bug',
+  );
+
+  const placed = new GNS(new NavData([]), { start: { lat: owd.lat, lon: owd.lon } });
+  const dis = distanceNm(placed.pos, ghg);
+  assert.ok(dis < 30, `Norwood to Marshfield should be a short hop, got ${dis.toFixed(1)} nm`);
+});
+
+test('the app actually wires the map data and the position into the box', () => {
+  // Both of these live in browser-only setup code that no unit test can call,
+  // and both failed silently: the map drew an empty black box and the aeroplane
+  // sat in Virginia. Reading the source is crude, but it is the only thing that
+  // catches a wiring line going missing.
+  const app = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+  assert.match(app, /setBasemap\(/, 'the embedded unit needs the basemap or the map is blank');
+  assert.match(app, /basemap\.json/, 'the basemap has to be fetched, not just imported');
+  assert.match(app, /stack\.setPosition\(/, 'the aeroplane has to start at the departure field');
 });
