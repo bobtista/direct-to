@@ -36,6 +36,11 @@ npm run asr:setup   # once — a ~3 GB model
 npm run asr         # alongside npm start
 ```
 
+That part needs the app running locally: the [hosted
+copy](https://bobtista.github.io/direct-to/say-again/) cannot reach a server on
+your machine, so it uses the browser's recogniser instead. Everything else works
+either way.
+
 ## Layout
 
 ```

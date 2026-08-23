@@ -11,7 +11,7 @@
     "build:navdata": "node tools/build-navdata.mjs",
     "build:procedures": "node tools/build-procedures.mjs",
     "start": "node tools/serve.mjs",
-    "stop": "pkill -f 'tools/serve.mjs'; pkill -f 'asr/server.py'; true",
+    "stop": "pkill -f 'tools/serve.mjs'; pkill -f '.venv/bin/python server.py'; true",
     "test": "node --test test/*.test.mjs say-again/test/*.test.mjs",
     "test:gps": "node --test test/*.test.mjs",
     "test:radio": "node --test say-again/test/*.test.mjs"

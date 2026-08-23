@@ -15,7 +15,7 @@ From the repo root:
 npm start
 ```
 
-Then open <http://localhost:8765/say-again/>. `npm test` runs 71 tests with no browser.
+Then open <http://localhost:8765/say-again/>. `npm test` runs 72 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
 
@@ -154,6 +154,14 @@ The page probes for it on load. If it is there, push-to-talk records your audio
 and sends it to the model; if it is not, nothing changes and the browser
 recogniser handles it as before. Audio never leaves the machine and there is
 nothing to pay for.
+
+**This only works when the page is served locally.** The hosted copy on GitHub
+Pages runs everything else — scenarios, grading, the radio audio, the GPS box —
+but not this. Chrome blocks a public HTTPS page from reaching `127.0.0.1`
+behind a *"wants to access devices on your local network"* permission prompt,
+and showing that to someone who is not running the server would be noise. So
+the page only looks for the recogniser when it is itself on `localhost`. Run it
+locally and it just works.
 
 **What makes it accurate is the hint.** Each transmission is sent with the
 vocabulary of the radio — the phonetic alphabet, "niner" and "tree", the stock

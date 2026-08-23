@@ -9,7 +9,7 @@ import { grade, isCallup } from './grade.js';
 import { WRITTEN, SPOKEN } from './phraseology.js';
 import { RadioStack, sameFreq } from './radiostack.js';
 import { bestAlternative } from './phraseology.js';
-import { Listener, hintFor } from './listen.js';
+import { Listener, hintFor, isLocalPage } from './listen.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -462,9 +462,15 @@ function showEngine() {
     el.textContent = listener.modelLoaded
       ? 'Local ATC recogniser — it hears phonetics properly.'
       : 'Local ATC recogniser found; still loading the model, so the first call may lag.';
-  } else if (listener.available) {
+  } else if (listener.available && isLocalPage()) {
     el.innerHTML =
       'Browser recogniser — it fumbles phonetics. Run <code>npm run asr</code> for the ATC-tuned one.';
+  } else if (listener.available) {
+    // Telling a visitor to the hosted copy to run a server they do not have
+    // would be noise; say what would actually help.
+    el.innerHTML =
+      'Browser recogniser — it fumbles phonetics like "five sierra papa". ' +
+      'The ATC-tuned recogniser needs the app <a href="https://github.com/bobtista/direct-to">run locally</a>.';
   } else {
     el.textContent = 'No speech recognition in this browser — use Type instead.';
   }

@@ -55,6 +55,11 @@ export function hintFor(step, { callsign = '', type = '' } = {}) {
   return bits.join(' ').slice(0, 900);
 }
 
+/** Is this page being served from the same machine the recogniser would run on? */
+export function isLocalPage(host = window.location?.hostname ?? '') {
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '';
+}
+
 export class Listener {
   /**
    * @param {{onResult: (text: string, engine: string) => void,
@@ -98,6 +103,13 @@ export class Listener {
 
   /** Look for the local recogniser; quietly keep the browser one if it is not up. */
   async probe() {
+    // Only worth asking when the page itself is local. From the hosted copy on
+    // GitHub Pages, Chrome blocks loopback requests behind a "wants to access
+    // devices on your local network" permission prompt — which no visitor to a
+    // public page should be shown, least of all for a server they are not
+    // running. Someone serving the app on their LAN to a tablet is in the same
+    // position: the model is on the host machine, not on the tablet.
+    if (!isLocalPage()) return this.engine;
     if (!window.MediaRecorder || !navigator.mediaDevices?.getUserMedia) return this.engine;
     this._format = pickFormat();
     if (!this._format) return this.engine;

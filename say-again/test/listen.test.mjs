@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { pickFormat, hintFor } from '../src/listen.js';
+import { pickFormat, hintFor, isLocalPage } from '../src/listen.js';
 
 test('picks the browser recording format, preferring opus', () => {
   const chrome = pickFormat((m) => m.startsWith('audio/webm'));
@@ -52,4 +52,14 @@ test('a missing step still produces a usable hint', () => {
 
 test('the hint stays inside the prompt budget', () => {
   assert.ok(hintFor({}, { callsign: 'x '.repeat(500) }).length <= 900);
+});
+
+test('only a locally served page looks for the local recogniser', () => {
+  // From the hosted copy, probing loopback earns the visitor a "wants to access
+  // devices on your local network" prompt for a server they are not running.
+  assert.ok(isLocalPage('localhost'));
+  assert.ok(isLocalPage('127.0.0.1'));
+  assert.ok(isLocalPage(''));
+  assert.ok(!isLocalPage('bobtista.github.io'));
+  assert.ok(!isLocalPage('192.168.1.40'));
 });
