@@ -68,8 +68,10 @@ test('only a locally served page looks for the local recogniser', () => {
 class FakeSR {
   start() { this.onstart?.(); }
   stop() { this.onend?.(); }
-  fire(transcript) {
-    this.onresult?.({ results: [[{ transcript }]] });
+  fire(transcript, isFinal = true) {
+    const result = [{ transcript }];
+    result.isFinal = isFinal;
+    this.onresult?.({ resultIndex: 0, results: [result] });
   }
   fail(error) { this.onerror?.({ error }); }
 }
@@ -131,4 +133,36 @@ test('recognition ending on its own releases the key', () => {
   l._sr.stop();
   assert.equal(l.listening, false);
   assert.equal(idle(), 1);
+});
+
+test('a draft transcript is used when the key comes up before Chrome finalises', () => {
+  // This is the ordinary case for push-to-talk: a short burst ends before the
+  // recogniser has committed to a transcript. Throwing the draft away is what
+  // produced "Nothing came through" on a call that was actually spoken.
+  const { l, notes, results } = listenerWithFakeSR();
+  l.start();
+  l._sr.fire('norwood ground skyhawk five sierra papa request taxi', false);
+  l._sr.stop();
+  assert.deepEqual(notes, []);
+  assert.deepEqual(results, [
+    [['norwood ground skyhawk five sierra papa request taxi'], 'browser'],
+  ]);
+});
+
+test('a final transcript wins over the draft that preceded it', () => {
+  const { l, results } = listenerWithFakeSR();
+  l.start();
+  l._sr.fire('norwood ground sky', false);
+  l._sr.fire('norwood ground skyhawk five sierra papa', true);
+  l._sr.stop();
+  assert.equal(results.length, 1);
+  assert.deepEqual(results[0][0], ['norwood ground skyhawk five sierra papa']);
+});
+
+test('an unrecognised error says what it was instead of blaming the key', () => {
+  const { l, notes } = listenerWithFakeSR();
+  l.start();
+  l._sr.fail('language-not-supported');
+  l._sr.stop();
+  assert.deepEqual(notes, ['Speech recognition failed: language-not-supported.']);
 });

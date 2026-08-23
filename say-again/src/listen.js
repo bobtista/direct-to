@@ -94,32 +94,46 @@ export class Listener {
 
     this._heard = false;
     this._reported = false;
+    this._interim = '';
 
     const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition;
     this._sr = SR ? new SR() : null;
     if (this._sr) {
       this._sr.lang = 'en-US';
-      this._sr.interimResults = false;
+      // Push-to-talk is a short, deliberate burst, and Chrome will not have
+      // finalised a transcript by the time the key comes up. Interim results
+      // give us a draft to fall back on, and `continuous` stops it cutting out
+      // at the first pause between "Norwood Ground" and the rest of the call.
+      this._sr.interimResults = true;
+      this._sr.continuous = true;
       this._sr.maxAlternatives = 3;
+
       this._sr.onstart = () => {
         this._heard = false;
         this._reported = false;
+        this._interim = '';
       };
-      this._sr.onresult = (e) => {
-        this._heard = true;
-        this._browserResult(e);
-      };
+      this._sr.onresult = (e) => this._browserResult(e);
       this._sr.onerror = (e) => {
-        const msg = SPEECH_ERRORS[e.error];
-        // `aborted` is what a normal key-up looks like; saying so is noise.
+        const known = Object.prototype.hasOwnProperty.call(SPEECH_ERRORS, e.error);
+        // An unmapped error used to fall through to "nothing came through",
+        // which hid the one piece of information worth having.
+        const msg = known ? SPEECH_ERRORS[e.error] : `Speech recognition failed: ${e.error}.`;
         if (msg) this.onNote(msg);
-        this._reported = msg !== undefined;
+        this._reported = true;
       };
       // Recognition can end on its own — a pause, a timeout, a lost mic — so
       // the button state has to follow the recogniser rather than the key.
       this._sr.onend = () => {
         this.listening = false;
         this.onIdle();
+        // A draft is better than nothing: it is what was actually said, just
+        // not yet confirmed.
+        if (!this._heard && this._interim.trim()) {
+          this._heard = true;
+          this.onResult([this._interim.trim()], 'browser');
+          return;
+        }
         if (!this._heard && !this._reported) {
           this.onNote('Nothing came through — hold the key down while you speak.');
         }
@@ -196,8 +210,17 @@ export class Listener {
   }
 
   _browserResult(e) {
-    const alts = [...e.results[0]].map((a) => a.transcript);
-    this.onResult(alts, 'browser');
+    // The same stream carries drafts and finished transcripts; only a final
+    // one counts as heard, but keep the latest draft as a fallback.
+    for (let i = e.resultIndex; i < e.results.length; i += 1) {
+      const r = e.results[i];
+      if (r.isFinal) {
+        this._heard = true;
+        this.onResult([...r].map((a) => a.transcript), 'browser');
+      } else {
+        this._interim = r[0]?.transcript ?? '';
+      }
+    }
   }
 
   // --- local ATC recogniser ---

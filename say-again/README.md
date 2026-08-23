@@ -15,7 +15,7 @@ From the repo root:
 npm start
 ```
 
-Then open <http://localhost:8765/say-again/>. `npm test` runs 76 tests with no browser.
+Then open <http://localhost:8765/say-again/>. `npm test` runs 79 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
 
@@ -96,6 +96,10 @@ Habits are flagged separately without failing you:
 - Dropping your callsign — checked anywhere in the transmission, since a
   readback ends with it, a callup puts it second, and an untowered self-announce
   ends with the field name
+
+Push-to-talk keeps the recogniser's draft transcript. A real press lasts a
+second or two, which is not long enough for Chrome to finalise anything, so
+throwing the draft away meant a call you actually made came back as silence.
 
 When the recogniser mangles your callsign, the log shows what it heard so you
 can tell a bad transcription from a bad call. When it hears nothing at all —
