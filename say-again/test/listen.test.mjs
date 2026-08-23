@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { pickFormat, hintFor, isLocalPage } from '../src/listen.js';
+import { Listener, pickFormat, hintFor, isLocalPage } from '../src/listen.js';
 
 test('picks the browser recording format, preferring opus', () => {
   const chrome = pickFormat((m) => m.startsWith('audio/webm'));
@@ -62,4 +62,73 @@ test('only a locally served page looks for the local recogniser', () => {
   assert.ok(isLocalPage(''));
   assert.ok(!isLocalPage('bobtista.github.io'));
   assert.ok(!isLocalPage('192.168.1.40'));
+});
+
+/** Stand-in for the browser's SpeechRecognition, so the state machine is testable. */
+class FakeSR {
+  start() { this.onstart?.(); }
+  stop() { this.onend?.(); }
+  fire(transcript) {
+    this.onresult?.({ results: [[{ transcript }]] });
+  }
+  fail(error) { this.onerror?.({ error }); }
+}
+
+function listenerWithFakeSR() {
+  const notes = [];
+  let idle = 0;
+  const results = [];
+  globalThis.window = { SpeechRecognition: FakeSR };
+  const l = new Listener({
+    onResult: (alts, engine) => results.push([alts, engine]),
+    onNote: (m) => notes.push(m),
+    onIdle: () => (idle += 1),
+  });
+  return { l, notes, results, idle: () => idle };
+}
+
+test('a transmission that recognised nothing says so', () => {
+  // This was silent before: you keyed up, nothing happened, and there was no
+  // way to tell a dead microphone from a bad call.
+  const { l, notes, idle } = listenerWithFakeSR();
+  l.start();
+  l._sr.stop();
+  assert.deepEqual(notes, ['Nothing came through — hold the key down while you speak.']);
+  assert.equal(idle(), 1);
+  assert.equal(l.listening, false);
+});
+
+test('a recognised transmission reports no complaint', () => {
+  const { l, notes, results } = listenerWithFakeSR();
+  l.start();
+  l._sr.fire('runway one seven hold short');
+  l._sr.stop();
+  assert.deepEqual(notes, []);
+  assert.deepEqual(results, [[['runway one seven hold short'], 'browser']]);
+});
+
+test('a blocked microphone explains itself, and a normal key-up stays quiet', () => {
+  const denied = listenerWithFakeSR();
+  denied.l.start();
+  denied.l._sr.fail('not-allowed');
+  denied.l._sr.stop();
+  assert.match(denied.notes[0], /blocked the microphone/);
+  assert.equal(denied.notes.length, 1, 'should not also complain that nothing came through');
+
+  const normal = listenerWithFakeSR();
+  normal.l.start();
+  normal.l._sr.fail('aborted');
+  normal.l._sr.stop();
+  assert.deepEqual(normal.notes, []);
+});
+
+test('recognition ending on its own releases the key', () => {
+  // Chrome ends recognition after a pause, so the button has to follow the
+  // recogniser rather than waiting for a key-up that already happened.
+  const { l, idle } = listenerWithFakeSR();
+  l.start();
+  assert.equal(l.listening, true);
+  l._sr.stop();
+  assert.equal(l.listening, false);
+  assert.equal(idle(), 1);
 });

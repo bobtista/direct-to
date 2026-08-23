@@ -436,6 +436,7 @@ function handleInput(said) {
 
 const listener = new Listener({
   onNote: (msg) => log('note', msg),
+  onIdle: () => els.ptt.classList.remove('keyed'),
   onResult: (alts, engine) => {
     // The browser recogniser often gets aviation speech right only in its
     // second or third guess, so score them against what this step expects.
@@ -503,9 +504,23 @@ function stopListening() {
 }
 
 // Hold the button like a real PTT.
-els.ptt.addEventListener('pointerdown', startListening);
-els.ptt.addEventListener('pointerup', stopListening);
-els.ptt.addEventListener('pointerleave', stopListening);
+//
+// The press is captured so the button keeps receiving events even if the
+// pointer drifts off it mid-sentence. Without that, `pointerleave` fires the
+// moment the mouse moves a pixel past the edge and cuts the transmission
+// before a word of it has been recognised.
+els.ptt.addEventListener('pointerdown', (e) => {
+  els.ptt.setPointerCapture?.(e.pointerId);
+  startListening();
+});
+els.ptt.addEventListener('pointerup', (e) => {
+  els.ptt.releasePointerCapture?.(e.pointerId);
+  stopListening();
+  // Otherwise the button keeps focus and the space-bar PTT fights with the
+  // browser activating the focused button.
+  els.ptt.blur();
+});
+els.ptt.addEventListener('pointercancel', stopListening);
 
 // --- wiring -----------------------------------------------------------------
 

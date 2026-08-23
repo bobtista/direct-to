@@ -15,7 +15,7 @@ From the repo root:
 npm start
 ```
 
-Then open <http://localhost:8765/say-again/>. `npm test` runs 72 tests with no browser.
+Then open <http://localhost:8765/say-again/>. `npm test` runs 76 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
 
@@ -98,7 +98,9 @@ Habits are flagged separately without failing you:
   ends with the field name
 
 When the recogniser mangles your callsign, the log shows what it heard so you
-can tell a bad transcription from a bad call.
+can tell a bad transcription from a bad call. When it hears nothing at all —
+a blocked microphone, a key-up that came too early — it says that too, rather
+than leaving you wondering whether the call was wrong.
 
 Grading works on meaning, not spelling: *"one two four point one"* and
 *"124.1"* are the same thing, and so are *"niner"* and *"9"*, *"cleared for take

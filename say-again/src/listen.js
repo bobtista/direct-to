@@ -13,6 +13,17 @@ const DEFAULT_ENDPOINT = 'http://127.0.0.1:8781';
 
 // Safari's MediaRecorder produces mp4/aac, Chrome and Firefox webm/opus. The
 // server decodes either, but it needs the right extension to know which.
+// What the browser recogniser's failures actually mean, in words that say what
+// to do about them. An empty string means "expected, stay quiet".
+const SPEECH_ERRORS = {
+  aborted: '',
+  'no-speech': 'No speech detected — hold the key down while you speak.',
+  'not-allowed': 'The browser blocked the microphone. Allow it for this site, then try again.',
+  'service-not-allowed': 'This browser refused speech recognition for this page.',
+  'audio-capture': 'No microphone available — another app may have taken it.',
+  network: 'Speech recognition needs a network connection.',
+};
+
 const FORMATS = [
   { mime: 'audio/webm;codecs=opus', ext: 'webm' },
   { mime: 'audio/webm', ext: 'webm' },
@@ -66,9 +77,10 @@ export class Listener {
    *          onNote?: (msg: string) => void,
    *          endpoint?: string}} opts
    */
-  constructor({ onResult, onNote, endpoint = DEFAULT_ENDPOINT } = {}) {
+  constructor({ onResult, onNote, onIdle, endpoint = DEFAULT_ENDPOINT } = {}) {
     this.onResult = onResult;
     this.onNote = onNote ?? (() => {});
+    this.onIdle = onIdle ?? (() => {});
     this.endpoint = endpoint;
     this.engine = null; // 'atc' | 'browser' | null
     this.listening = false;
@@ -80,14 +92,38 @@ export class Listener {
     this._chunks = [];
     this._format = null;
 
+    this._heard = false;
+    this._reported = false;
+
     const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition;
     this._sr = SR ? new SR() : null;
     if (this._sr) {
       this._sr.lang = 'en-US';
       this._sr.interimResults = false;
       this._sr.maxAlternatives = 3;
-      this._sr.onresult = (e) => this._browserResult(e);
-      this._sr.onerror = (e) => this.onNote(`Microphone: ${e.error}`);
+      this._sr.onstart = () => {
+        this._heard = false;
+        this._reported = false;
+      };
+      this._sr.onresult = (e) => {
+        this._heard = true;
+        this._browserResult(e);
+      };
+      this._sr.onerror = (e) => {
+        const msg = SPEECH_ERRORS[e.error];
+        // `aborted` is what a normal key-up looks like; saying so is noise.
+        if (msg) this.onNote(msg);
+        this._reported = msg !== undefined;
+      };
+      // Recognition can end on its own — a pause, a timeout, a lost mic — so
+      // the button state has to follow the recogniser rather than the key.
+      this._sr.onend = () => {
+        this.listening = false;
+        this.onIdle();
+        if (!this._heard && !this._reported) {
+          this.onNote('Nothing came through — hold the key down while you speak.');
+        }
+      };
       this.engine = 'browser';
     }
   }
@@ -208,6 +244,7 @@ export class Listener {
       const out = await res.json();
       if (out.error) throw new Error(out.error);
       const text = (out.text ?? '').trim();
+      this.onIdle();
       if (text) this.onResult([text], 'atc');
       else if (out.dropped) this.onNote('That did not come through — say again.');
       else this.onNote('Nothing heard — hold the key while you speak.');
