@@ -270,3 +270,36 @@ test('every step offers a model call and an explanation for Peek', () => {
     }
   }
 });
+
+test('every scenario grades its own model answer as correct', () => {
+  // The grader and the scripts drifted apart once already: the callsign check
+  // only looked at the last few words, so a correct initial callup and every
+  // untowered self-announce came back with a bad-habit note. If the app cannot
+  // pass its own example, it is teaching the wrong thing.
+  const scenarios = [
+    departureWithFlightFollowing({ home: byId.get('KOWD'), dest: byId.get('KPYM'), ac, wx }),
+    untoweredPattern({ home: byId.get('KPYM'), dest: byId.get('KPYM'), ac, wx }),
+    classBTransition({
+      home: byId.get('KOWD'), dest: byId.get('KPYM'), bravo: byId.get('KBOS'), ac, wx,
+    }),
+  ];
+
+  let checked = 0;
+  for (const sc of scenarios) {
+    for (const s of sc.steps) {
+      const model = s.exampleSpeech ?? s.readback;
+      if (!model) continue;
+      checked += 1;
+      const r = grade(model, s.requires ?? [], { ...ac, mode: s.mode });
+      assert.deepEqual(
+        r.missing ?? [], [],
+        `${sc.title} / ${s.id}: model answer missing a requirement — ${model}`,
+      );
+      assert.deepEqual(
+        (r.habits ?? []).map((h) => h.id), [],
+        `${sc.title} / ${s.id}: model answer flagged a bad habit — ${model}`,
+      );
+    }
+  }
+  assert.ok(checked > 15, `expected to check most steps, checked ${checked}`);
+});

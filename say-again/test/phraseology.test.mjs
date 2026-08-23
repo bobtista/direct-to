@@ -121,3 +121,22 @@ test('callsign leniency is confined to the end of the transmission', () => {
   assert.ok(!soundsLikeCallsign('taxi via papa sierra hold short runway 17', 'N725SP'));
   assert.ok(soundsLikeCallsign('hold short runway 17, five sierra papa', 'N725SP'));
 });
+
+test('the callsign counts wherever correct phraseology puts it', () => {
+  const tail = 'N725SP';
+  // A readback ends with it.
+  assert.ok(soundsLikeCallsign('runway one seven hold short runway one seven, five sierra papa', tail));
+  // An initial callup puts it second.
+  assert.ok(soundsLikeCallsign('Boston Approach, november seven two five sierra papa, ten miles northeast', tail));
+  // An untowered self-announce ends with the field name, not the callsign.
+  assert.ok(soundsLikeCallsign('Plymouth traffic, november seven two five sierra papa, left downwind runway zero six, Plymouth', tail));
+});
+
+test('digits elsewhere in the transmission cannot stand in for a callsign', () => {
+  const tail = 'N725SP';
+  assert.ok(!soundsLikeCallsign('runway one seven via alpha hold short runway one seven', tail));
+  assert.ok(!soundsLikeCallsign('squawk four six eight zero', tail));
+  assert.ok(!soundsLikeCallsign('climbing through two thousand five hundred en route Plymouth', tail));
+  // The field name last is not a callsign either.
+  assert.ok(!soundsLikeCallsign('Plymouth traffic, left downwind runway zero six, Plymouth', tail));
+});

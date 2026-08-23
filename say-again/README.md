@@ -15,7 +15,7 @@ From the repo root:
 npm start
 ```
 
-Then open <http://localhost:8765/say-again/>. `npm test` runs 60 tests with no browser.
+Then open <http://localhost:8765/say-again/>. `npm test` runs 71 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
 
@@ -93,7 +93,9 @@ Habits are flagged separately without failing you:
 - Filler — *um*, *uh*, *like*
 - "With you"
 - "Any traffic please advise", which the AIM specifically discourages
-- Dropping your callsign
+- Dropping your callsign — checked anywhere in the transmission, since a
+  readback ends with it, a callup puts it second, and an untowered self-announce
+  ends with the field name
 
 When the recogniser mangles your callsign, the log shows what it heard so you
 can tell a bad transcription from a bad call.
@@ -132,6 +134,43 @@ requires verified consent for any voice that is not yours; and several states
 require written consent to clone a real person. None of it is necessary — the
 realism is in the channel and the phraseology.
 
+## Hearing you properly
+
+Browser speech recognition is trained on ordinary English, so it mangles the
+phonetic alphabet: "five sierra papa" comes back as "50 pop", and a graded
+readback fails on a word you said correctly.
+
+The fix is a recogniser that has heard a radio before. `npm run asr:setup`
+downloads [a Whisper model fine-tuned on air traffic control
+audio](https://huggingface.co/jacktol/whisper-medium.en-fine-tuned-for-ATC-faster-whisper)
+and `npm run asr` serves it on port 8781:
+
+```
+npm run asr:setup    # once — ~3 GB
+npm run asr          # alongside npm start
+```
+
+The page probes for it on load. If it is there, push-to-talk records your audio
+and sends it to the model; if it is not, nothing changes and the browser
+recogniser handles it as before. Audio never leaves the machine and there is
+nothing to pay for.
+
+**What makes it accurate is the hint.** Each transmission is sent with the
+vocabulary of the radio — the phonetic alphabet, "niner" and "tree", the stock
+phrases — and this aircraft's callsign in spoken form. Whisper conditions its
+decoding on that text, which is what pulls "five sierra papa" back to the right
+tokens.
+
+The hint deliberately leaves out the values the step is grading: the runway, the
+squawk, the frequency. Priming the model with the right answer risks it hearing
+the right answer when you said the wrong one, and a trainer that passes a bad
+readback is worse than one that mishears you. The server also throws out any
+transcript with more words in it than could physically have been spoken in the
+time recorded, which is what prompt-echo looks like when it happens.
+
+Both engines feed one interface in `src/listen.js`, so the rest of the app does
+not know or care which one is running.
+
 ## Structure
 
 | File | Role |
@@ -140,8 +179,10 @@ realism is in the channel and the phraseology.
 | `src/grade.js` | Readback grading and habit detection |
 | `src/scenario.js` | Scripted exchanges built from real airport data |
 | `src/radio.js` | The VHF channel, in Web Audio |
-| `src/app.js` | Wiring, speech recognition, push-to-talk |
+| `src/listen.js` | Push-to-talk input: local ATC recogniser, or the browser's |
+| `src/app.js` | Wiring, scenario flow, push-to-talk |
 | `tools/build-airports.mjs` | Builds the airport and frequency dataset |
+| `../tools/asr/server.py` | The local ATC speech recogniser |
 
 `src/phraseology.js`, `grade.js` and `scenario.js` touch no DOM, so they test
 under plain node.
@@ -172,12 +213,9 @@ final say.
 - **Scripted, not conversational.** Replies are deterministic, which costs
   nothing and grades reliably, but will not react to an unusual request. An LLM
   controller is a later upgrade, not a prerequisite.
-- **Browser speech recognition is weak on aviation speak.** "Five sierra papa"
-  comes back as "50 pop". Two things soften that: the recogniser's alternative
-  guesses are scored against what the step expects rather than taking the first
-  one, and the callsign check tolerates known mishearings. Neither fixes the
-  transcription itself — an ATC-tuned recogniser is the real answer, and the
-  open corpora for it exist (ATCO2, UWB-ATCC, ATCOSIM).
+- **The browser recogniser is still the default.** It is weak on aviation speak
+  and the local ATC recogniser below is the fix, but that one is opt-in because
+  it is a 3 GB download.
 - **Frequency data has holes.** Some fields carry no frequencies at all in
   OurAirports, so scenario coverage is uneven.
 - **`SpeechSynthesis` cannot route into Web Audio**, so the channel effect plays

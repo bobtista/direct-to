@@ -295,31 +295,53 @@ for (const [letter, words] of Object.entries(MISHEARD)) {
 }
 
 /**
- * Did the pilot end the transmission with something callsign-shaped?
+ * Did the pilot say something callsign-shaped anywhere in the transmission?
  *
- * Compares the tail of what was heard against the last three characters of the
- * registration, allowing one character to have been lost — which is what
- * happens when "sierra" is transcribed as part of a number.
+ * Position is deliberately not checked. A readback ends with the callsign, but
+ * an initial callup puts it second ("Boston Approach, N725SP, ten miles
+ * northeast…"), and an untowered self-announce ends with the field name by
+ * design ("Plymouth traffic, N725SP, left downwind, Plymouth"). All three are
+ * correct, so scanning only the tail flags good phraseology as a bad habit.
+ *
+ * What it looks for is a run of callsign-shaped tokens — phonetic letters,
+ * spoken digits, a typed "725SP" — compared against the last three characters
+ * of the registration, allowing one to have been lost. That tolerance is what
+ * lets a mangled "papa" through, since failing a correct call because the
+ * recogniser heard "pop" teaches nothing.
  */
 export function soundsLikeCallsign(said, tail) {
   const want = String(tail).toUpperCase().replace(/^N/, '').slice(-3);
   if (!want) return false;
 
-  // Only the end of the transmission: the callsign goes last.
   const words = String(said).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
-  const chars = words
-    .slice(-6)
-    .flatMap((w) => {
-      if (HEARD_AS[w]) return [HEARD_AS[w]];
-      // A typed callsign arrives whole ("5SP", "725SP"); spread it out. Only
-      // tokens carrying a digit, so "runway" is not read as R-U-N-W-A-Y.
-      if (/\d/.test(w)) return [...w.toUpperCase()];
-      if (/^[a-z]$/.test(w)) return [w.toUpperCase()];
-      return [];
-    })
-    .join('');
 
-  // Subsequence match, tolerating one miss.
+  // Split into maximal runs of tokens that could be part of a callsign, so
+  // "runway zero six" cannot lend its digits to a callsign three words away.
+  const runs = [];
+  let run = '';
+  for (const w of words) {
+    const chars = callsignChars(w);
+    if (chars) run += chars;
+    else if (run) (runs.push(run), (run = ''));
+  }
+  if (run) runs.push(run);
+
+  return runs.some((r) => within(want, r, 1));
+}
+
+/** The characters a single spoken word contributes to a callsign, if any. */
+function callsignChars(w) {
+  if (HEARD_AS[w]) return HEARD_AS[w];
+  if (WORD_TO_DIGIT[w]) return WORD_TO_DIGIT[w];
+  // A typed callsign arrives whole ("5SP", "725SP"); spread it out. Only
+  // tokens carrying a digit, so "runway" is not read as R-U-N-W-A-Y.
+  if (/^[a-z0-9]*\d[a-z0-9]*$/.test(w)) return w.toUpperCase();
+  if (/^[a-z]$/.test(w)) return w.toUpperCase();
+  return null;
+}
+
+/** Is `want` a subsequence of `chars`, give or take `slack` missing characters? */
+function within(want, chars, slack) {
   let missed = 0;
   let at = 0;
   for (const c of want) {
@@ -327,8 +349,9 @@ export function soundsLikeCallsign(said, tail) {
     if (found === -1) missed += 1;
     else at = found + 1;
   }
-  return missed <= 1;
+  return missed <= slack;
 }
+
 
 /**
  * Of several recogniser guesses, the one that best fits what was expected.

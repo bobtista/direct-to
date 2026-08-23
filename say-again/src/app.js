@@ -6,9 +6,10 @@ import {
   randomWx,
 } from './scenario.js';
 import { grade, isCallup } from './grade.js';
-import { WRITTEN } from './phraseology.js';
+import { WRITTEN, SPOKEN } from './phraseology.js';
 import { RadioStack, sameFreq } from './radiostack.js';
 import { bestAlternative } from './phraseology.js';
+import { Listener, hintFor } from './listen.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -33,6 +34,7 @@ const els = {
   example: $('example'),
   log: $('log'),
   mute: $('mute'),
+  ear: $('ear'),
   kind: $('kind'),
   bravo: $('bravo'),
   bravoField: $('bravo-field'),
@@ -306,7 +308,7 @@ async function transmit(s) {
 function refreshControls() {
   const s = currentStep();
   const yourTurn = Boolean(s) && (!s.controllerFirst || s.transmitted) && !speaking;
-  els.ptt.disabled = !recognition || !yourTurn;
+  els.ptt.disabled = !listener.available || !yourTurn;
   els.hear.disabled = !s?.transmitted || speaking;
   els.hear.title = speaking
     ? 'The controller is still transmitting'
@@ -432,47 +434,66 @@ function handleInput(said) {
 
 // --- speech recognition -----------------------------------------------------
 
-const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition;
-let recognition = null;
-
-if (SR) {
-  recognition = new SR();
-  recognition.lang = 'en-US';
-  recognition.interimResults = false;
-  recognition.maxAlternatives = 3;
-  recognition.onresult = (e) => {
-    // Recognisers often get aviation speech right in the second or third guess,
-    // so score them against what this step is actually expecting.
-    const alts = [...e.results[0]].map((a) => a.transcript);
+const listener = new Listener({
+  onNote: (msg) => log('note', msg),
+  onResult: (alts, engine) => {
+    // The browser recogniser often gets aviation speech right only in its
+    // second or third guess, so score them against what this step expects.
+    // The ATC model returns one transcript and does not need the help.
     const expected = (currentStep()?.requires ?? []).map((r) => r.value);
-    const best = bestAlternative(alts, expected);
+    const best = engine === 'atc' ? alts[0] : bestAlternative(alts, expected);
     if (alts.length > 1 && best !== alts[0]) {
       log('note', `Heard "${alts[0].trim()}" — using the closer guess "${best.trim()}".`);
     }
     handleInput(best);
-  };
-  recognition.onerror = (e) => log('note', `Microphone: ${e.error}`);
-} else {
+  },
+});
+
+listener.probe().then(() => {
+  showEngine();
+  refreshControls();
+});
+
+/** Say which recogniser is listening, and how to get the better one. */
+function showEngine() {
+  const el = els.ear;
+  el.hidden = false;
+  if (listener.engine === 'atc') {
+    el.textContent = listener.modelLoaded
+      ? 'Local ATC recogniser — it hears phonetics properly.'
+      : 'Local ATC recogniser found; still loading the model, so the first call may lag.';
+  } else if (listener.available) {
+    el.innerHTML =
+      'Browser recogniser — it fumbles phonetics. Run <code>npm run asr</code> for the ATC-tuned one.';
+  } else {
+    el.textContent = 'No speech recognition in this browser — use Type instead.';
+  }
+}
+
+if (!listener.available) {
   els.ptt.title = 'This browser has no speech recognition — use "Type instead".';
 }
 
-let listening = false;
-function startListening() {
-  if (!recognition || listening) return;
-  audio();
-  listening = true;
-  els.ptt.classList.add('keyed');
-  try {
-    recognition.start();
-  } catch {
-    listening = false;
-  }
+/** The tail number as it should sound, to anchor the recogniser. */
+function callsignSpeech() {
+  return scenario?.ac ? SPOKEN.callsign(scenario.ac) : '';
 }
+
+function startListening() {
+  if (!listener.available || listener.listening) return;
+  audio();
+  // Tell the recogniser what this step is expecting. It biases decoding
+  // towards real phraseology without accepting a wrong readback as right.
+  listener.setHint(hintFor(currentStep(), { callsign: callsignSpeech(), type: scenario?.ac?.type }));
+  els.ptt.classList.add('keyed');
+  listener.start();
+}
+
 function stopListening() {
-  if (!recognition || !listening) return;
-  listening = false;
+  // Unkey the button first: if the microphone was refused, the listener has
+  // already stopped and would otherwise leave the key stuck down.
   els.ptt.classList.remove('keyed');
-  recognition.stop();
+  listener.stop();
 }
 
 // Hold the button like a real PTT.

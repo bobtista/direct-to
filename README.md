@@ -27,6 +27,15 @@ npm run test:gps  # the GPS unit
 npm run test:radio  # the radio trainer
 ```
 
+Say Again can also use a local speech recogniser fine-tuned on air traffic
+control audio, which — unlike the browser's — hears *"five sierra papa"* rather
+than *"50 pop"*. It is optional and runs entirely on your machine:
+
+```
+npm run asr:setup   # once — a ~3 GB model
+npm run asr         # alongside npm start
+```
+
 ## Layout
 
 ```
@@ -35,7 +44,7 @@ shared/         styling for the unit, used by both apps
 data/           waypoints, approach procedures, basemap
 index.html      Direct-To
 say-again/      the radio trainer, importing the unit from ../src
-tools/          the static server and the data builders
+tools/          the static server, the data builders, the local speech recogniser
 ```
 
 `src/` is a library, not an app: `src/app.js` is the only Direct-To-specific

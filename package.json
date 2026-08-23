@@ -5,12 +5,14 @@
   "type": "module",
   "description": "A browser-based GA cockpit trainer: the GPS box (Direct-To) and the radio (Say Again)",
   "scripts": {
-    "start": "node tools/serve.mjs",
-    "test": "node --test test/*.test.mjs say-again/test/*.test.mjs",
+    "asr": "tools/asr/run.sh",
+    "asr:setup": "tools/asr/setup.sh",
+    "build:basemap": "node --max-old-space-size=6144 tools/build-basemap.mjs",
     "build:navdata": "node tools/build-navdata.mjs",
     "build:procedures": "node tools/build-procedures.mjs",
-    "build:basemap": "node --max-old-space-size=6144 tools/build-basemap.mjs",
-    "stop": "pkill -f 'tools/serve.mjs' || pkill -f 'http.server 8765' || true",
+    "start": "node tools/serve.mjs",
+    "stop": "pkill -f 'tools/serve.mjs'; pkill -f 'asr/server.py'; true",
+    "test": "node --test test/*.test.mjs say-again/test/*.test.mjs",
     "test:gps": "node --test test/*.test.mjs",
     "test:radio": "node --test say-again/test/*.test.mjs"
   }

@@ -80,7 +80,7 @@ const BAD_HABITS = [
     // alphabet, and failing a correct call because "papa" came back as "pop"
     // teaches nothing.
     test: (said, req, ctx) => ctx?.tail && !soundsLikeCallsign(said, ctx.tail),
-    note: 'Every transmission ends with your callsign.',
+    note: 'Every transmission carries your callsign.',
   },
 ];
 

@@ -12,3 +12,7 @@ Screenshot*.png
 # Garmin's own faceplate bitmap, extracted from the installer above. The
 # Original skin uses it when present; see the README to enable it locally.
 assets/bezel-430.png
+
+# Local speech recognition environment (rebuild with: npm run asr:setup)
+tools/asr/.venv/
+tools/asr/__pycache__/
