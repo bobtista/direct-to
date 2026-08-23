@@ -65,10 +65,18 @@ second approach replaces the first.
 
 ## The map
 
-Track-up, own-ship centred, with WPT / DTK / DIS / GS down the right-hand side.
-The active course draws in magenta — flight plan legs and Direct-To alike — so
-a Direct-To to `KGHG` shows the magenta line running to Marshfield Municipal
-whether or not it is in a flight plan.
+Own-ship centred, with WPT / DTK / DIS / GS down the right-hand side. The active
+course draws in magenta — flight plan legs and Direct-To alike — so a Direct-To
+to `KGHG` shows the magenta line running to Marshfield Municipal whether or not
+it is in a flight plan.
+
+**Track-up by default**, like the real box, and the header says which mode you
+are in. Track-up is why the magenta line points straight up when you are on
+course: the line shows where the destination is *relative to where you are
+pointing*, not relative to north. It also means the world rotates under you —
+useful in the air, disorienting on the ground, and hard to reconcile with a
+paper chart. **MENU** on the map page switches to **north-up**, where southeast
+is down and to the right and the coastline looks like the coastline.
 
 **Auto zoom** is on by default: the scale steps from 200 NM down to 1 NM as you
 close on the destination, so the active waypoint stays on screen without you

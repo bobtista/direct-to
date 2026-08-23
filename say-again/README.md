@@ -191,6 +191,9 @@ Every step carries a `where` — a latitude, a longitude and a track — and the
 is moved there when the step comes up. It does not fly; it jumps, once per
 stage, which is all the scenarios need.
 
+Ground speed comes with it: parked at the ramp the box reads `GS 0k`, not the
+120 knots it used to claim while you were still tied down.
+
 The positions are not invented. Each one is derived from the same numbers that
 build the words, so *"five miles southeast of Norwood, climbing through two
 thousand"* puts you five miles southeast of Norwood on the GPS. A test asserts

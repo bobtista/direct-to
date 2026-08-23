@@ -35,6 +35,10 @@ export class GNS {
     // Aircraft state. The trainer flies a simple constant-speed model.
     this.pos = opts.start ?? { lat: 39.078, lon: -77.5575 }; // KJYO
     this.groundSpeed = 120;
+    // Track-up is the 430's default, but it makes an unfamiliar area
+    // unreadable — and it is meaningless when you are parked. North-up is the
+    // other half of MAP SETUP on the real box.
+    this.mapNorthUp = false;
     this.altitude = 4500;
     this.track = 270;
 
@@ -646,7 +650,11 @@ export class GNS {
       this.mode === 'FPL'
         ? ['Activate Flight Plan?', 'Invert & Activate FPL?', 'Delete Flight Plan?']
         : this.page_ === 'MAP'
-          ? [this.autoZoom ? 'Auto Zoom Off?' : 'Auto Zoom On?', 'Restore Defaults?']
+          ? [
+              this.autoZoom ? 'Auto Zoom Off?' : 'Auto Zoom On?',
+              this.mapNorthUp ? 'Track Up?' : 'North Up?',
+              'Restore Defaults?',
+            ]
           : this.page_ === 'NRST_AIRPORT'
             ? ['Show Nearest 25?']
             : ['Change Fields?', 'Restore Defaults?'];
@@ -665,6 +673,12 @@ export class GNS {
       case 'Invert & Activate FPL?':
         this.flightPlan.reverse();
         return this.activateFlightPlan();
+      case 'North Up?':
+        this.mapNorthUp = true;
+        return;
+      case 'Track Up?':
+        this.mapNorthUp = false;
+        return;
       case 'Auto Zoom On?':
         this.autoZoom = true;
         return;
@@ -920,6 +934,7 @@ export class GNS {
       pos: { ...this.pos },
       altitude: this.altitude,
       groundSpeed: this.groundSpeed,
+      mapNorthUp: this.mapNorthUp,
       mapRange: this.effectiveRange,
       autoZoom: this.autoZoom,
       declutter: this.declutter,

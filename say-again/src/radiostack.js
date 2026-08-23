@@ -134,10 +134,13 @@ export class RadioStack {
    * Direct-To from a Boston-area field reads a few hundred miles and the map
    * shows empty ocean.
    */
-  setPosition({ lat, lon }, track) {
+  setPosition({ lat, lon, trk, gs }, track = trk) {
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
     this.gns.pos = { lat, lon };
     if (Number.isFinite(track)) this.gns.track = track;
+    // Parked at the ramp reading 120 knots is the sort of detail that teaches
+    // you to ignore the instruments.
+    if (Number.isFinite(gs)) this.gns.groundSpeed = gs;
     this.render();
   }
 

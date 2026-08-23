@@ -14,7 +14,7 @@ import { UNITS } from '../src/units.js';
 import { renderScreen } from '../src/screen.js';
 import { eventForRegion, KEYBOARD } from '../src/bezel.js';
 import { renderGtnScreen } from '../src/gtnscreen.js';
-import { setBasemap, mapLayers } from '../src/mapdraw.js';
+import { setBasemap, mapLayers, projector } from '../src/mapdraw.js';
 
 const raw = JSON.parse(readFileSync(new URL('../data/navdata.json', import.meta.url), 'utf8'));
 const db = new NavData(raw.waypoints);
@@ -154,4 +154,49 @@ test('the moving map draws nothing until a basemap is supplied', () => {
   assert.match(mapLayers(opts), /<path/, 'a coastline should reach the screen');
 
   setBasemap({ coast: [], lakes: [], airspace: [] });
+});
+
+test('the map can be flown north-up, and says which it is', () => {
+  // Track-up is the 430's default and it is authentic, but it rotates an
+  // unfamiliar area into something unreadable — and while parked, the track it
+  // rotates to is meaningless.
+  const g = new GNS(new NavData([{ id: 'KPYM', lat: 41.909, lon: -70.729, kind: 'APT' }]));
+  g.pos = { lat: 42.1905, lon: -71.1729 };
+  g.track = 170;
+  g.group = 0;
+  g.page = 1;
+
+  assert.match(renderScreen(g.view), /TRK UP/);
+
+  const press = (key) => g.handle({ type: 'press', key });
+  press('MENU');
+  const items = g.view.menu.items;
+  assert.ok(items.includes('North Up?'), `expected a north-up option, got ${items.join(', ')}`);
+  g.menu.sel = items.indexOf('North Up?');
+  press('ENT');
+
+  assert.equal(g.mapNorthUp, true);
+  assert.match(renderScreen(g.view), /NORTH UP/);
+
+  // And it offers the way back.
+  press('MENU');
+  assert.ok(g.view.menu.items.includes('Track Up?'));
+});
+
+test('north-up stops the world rotating under the aeroplane', () => {
+  const opts = {
+    pos: { lat: 42.19, lon: -71.17 },
+    range: 60,
+    box: { x: 0, y: 0, w: 240, h: 128 },
+  };
+  const to = (trk) => projector({ ...opts, trk });
+
+  // A point due south should render below the aircraft when north is up.
+  const south = [-71.17, 41.69];
+  const [, yNorthUp] = to(0)(...south);
+  assert.ok(yNorthUp > 64, 'due south should be below centre on a north-up map');
+
+  // Facing south, the same point is ahead of you, so it moves above centre.
+  const [, yTrackUp] = to(180)(...south);
+  assert.ok(yTrackUp < 64, 'due south should be ahead when tracking south');
 });

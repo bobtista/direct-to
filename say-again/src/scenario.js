@@ -163,8 +163,8 @@ function render(build, ctx) {
 function departureSteps(r, ctx) {
   const { home, dest, ac, wx, rwy, rwyHdg, course, field, gnd, twr, dep, depName, code, cruise, direction, departure } = ctx;
   // Where the aeroplane is at each stage, so the GPS agrees with the words.
-  const onField = { lat: home.lat, lon: home.lon, trk: rwyHdg };
-  const enRoute = (nm) => ({ ...project(home, course, nm), trk: course });
+  const onField = { lat: home.lat, lon: home.lon, trk: rwyHdg, gs: 0 };
+  const enRoute = (nm, gs = 110) => ({ ...project(home, course, nm), trk: course, gs });
   const legNm = distanceNm(home, dest);
   const full = r.callsign(ac);
   const abbr = r.callsign(ac, { abbreviated: true });
@@ -209,7 +209,7 @@ function departureSteps(r, ctx) {
     },
     {
       id: 'tower-handoff',
-      where: enRoute(3),
+      where: enRoute(3, 85),
       mode: 'readback',
       facility: `${field} Tower`,
       freq: twr,
@@ -222,7 +222,7 @@ function departureSteps(r, ctx) {
     },
     {
       id: 'approach',
-      where: enRoute(5),
+      where: enRoute(5, 95),
       mode: 'readback',
       facility: depName,
       freq: dep,
@@ -290,9 +290,9 @@ function untoweredSteps(r, ctx) {
   const side = patternSide();
   const bookend = `${field} traffic`;
 
-  const onField = { lat: home.lat, lon: home.lon, trk: rwyHdg };
+  const onField = { lat: home.lat, lon: home.lon, trk: rwyHdg, gs: 0 };
   // The pattern legs sit a mile or two off the field, on the runway heading.
-  const offField = (nm, brg = course) => ({ ...project(home, brg, nm), trk: brg });
+  const offField = (nm, brg = course, gs = 90) => ({ ...project(home, brg, nm), trk: brg, gs });
 
   const announce = (id, where, prompt, example, requires, why, note) => ({
     id,
@@ -421,7 +421,7 @@ function classBSteps(r, ctx) {
   // destination, so positions are measured from the Bravo, not from home.
   const inbound = bearing(bravo, home);
   const outbound = bearing(bravo, dest);
-  const nearBravo = (nm, brg) => ({ ...project(bravo, brg, nm), trk: (brg + 180) % 360 });
+  const nearBravo = (nm, brg) => ({ ...project(bravo, brg, nm), trk: (brg + 180) % 360, gs: 115 });
 
   return [
     {

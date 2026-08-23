@@ -356,11 +356,13 @@ function mapPage(v) {
 
   out.push(fill(0, 0, W, 10, 'var(--panel)'));
   out.push(txt('MAP', 4, 1, { size: 8, color: '#fff', bold: true }));
-  out.push(txt('TRK UP', 62, 1, { size: 7, color: 'var(--cyn)' }));
+  const northUp = Boolean(v.mapNorthUp);
+  out.push(txt(northUp ? 'NORTH UP' : 'TRK UP', 62, 1, { size: 7, color: 'var(--cyn)' }));
 
   const opts = {
     pos: v.pos,
-    trk: v.nav?.trk ?? 0,
+    // North-up simply stops rotating the world under the aeroplane.
+    trk: northUp ? 0 : (v.nav?.trk ?? 0),
     range: v.mapRange,
     box: MAP,
     plan: v.mapPlan ?? [],
