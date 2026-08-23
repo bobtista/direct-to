@@ -77,10 +77,13 @@ export class Listener {
    *          onNote?: (msg: string) => void,
    *          endpoint?: string}} opts
    */
-  constructor({ onResult, onNote, onIdle, endpoint = DEFAULT_ENDPOINT } = {}) {
+  constructor({ onResult, onNote, onIdle, onStatus, endpoint = DEFAULT_ENDPOINT } = {}) {
     this.onResult = onResult;
     this.onNote = onNote ?? (() => {});
     this.onIdle = onIdle ?? (() => {});
+    // Transcribing takes a moment on the local model; silence looks like a
+    // hang, so say what is happening.
+    this.onStatus = onStatus ?? (() => {});
     this.endpoint = endpoint;
     this.engine = null; // 'atc' | 'browser' | null
     this.listening = false;
@@ -133,6 +136,7 @@ export class Listener {
       this._sr.onend = () => {
         this.listening = false;
         this.onIdle();
+        this.onStatus('');
         this._submit();
       };
       this.engine = 'browser';
@@ -185,6 +189,7 @@ export class Listener {
   async start() {
     if (!this.available || this.listening) return;
     this.listening = true;
+    this.onStatus('listening');
     if (this.engine === 'atc') await this._startRecording();
     else this._startBrowser();
   }
@@ -252,6 +257,8 @@ export class Listener {
       });
     } catch (err) {
       this.listening = false;
+      this.onStatus('');
+      this.onIdle();
       this.onNote(`Microphone unavailable: ${err.name}`);
       return;
     }
@@ -274,6 +281,7 @@ export class Listener {
     // A stray tap is not a transmission.
     if (blob.size < 1200) return;
 
+    this.onStatus('working');
     const url = `${this.endpoint}/transcribe?ext=${this._format.ext}` +
       `&hint=${encodeURIComponent(this.hint)}`;
     try {
@@ -286,11 +294,13 @@ export class Listener {
       if (out.error) throw new Error(out.error);
       const text = (out.text ?? '').trim();
       this.onIdle();
+      this.onStatus('');
       if (text) this.onResult([text], 'atc');
       else if (out.dropped) this.onNote('That did not come through — say again.');
       else this.onNote('Nothing heard — hold the key while you speak.');
     } catch (err) {
       // Losing the server mid-session should degrade, not break.
+      this.onStatus('');
       this.onNote(`Local recogniser failed (${err.message}); falling back to the browser.`);
       this.engine = this._sr ? 'browser' : null;
     }

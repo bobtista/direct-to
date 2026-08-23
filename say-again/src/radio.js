@@ -182,6 +182,27 @@ export class Radio {
   }
 }
 
+
+let cancelCurrent = null;
+
+/**
+ * Stop the controller mid-word.
+ *
+ * On a real radio, keying up while someone is transmitting steps on them. Here
+ * it just means you are ready to talk, and waiting out a transmission you have
+ * already understood is the most tiring part of practising.
+ */
+export function stopSpeaking() {
+  try {
+    if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
+  } catch {
+    // A browser without speech synthesis has nothing to cancel.
+  }
+  const finish = cancelCurrent;
+  cancelCurrent = null;
+  finish?.();
+}
+
 /**
  * Speak text through the radio using the browser's own voices.
  *
@@ -205,9 +226,14 @@ export function speakThroughRadio(radio, text, voiceOpts = {}) {
       if (settled) return;
       settled = true;
       if (timer) clearTimeout(timer);
+      if (cancelCurrent === finish) cancelCurrent = null;
       radio.keyUp();
       resolve();
     };
+
+    // Keying up mid-transmission has to be able to cut the controller off, and
+    // the promise's resolver is the only thing that can do that cleanly.
+    cancelCurrent = finish;
 
     radio.keyDown();
 

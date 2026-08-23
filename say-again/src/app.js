@@ -1,4 +1,4 @@
-import { Radio, speakThroughRadio } from './radio.js';
+import { Radio, speakThroughRadio, stopSpeaking } from './radio.js';
 import {
   departureWithFlightFollowing,
   untoweredPattern,
@@ -37,6 +37,9 @@ const els = {
   log: $('log'),
   mute: $('mute'),
   ear: $('ear'),
+  tuned: $('tuned'),
+  status: $('status'),
+  callsign: $('callsign'),
   kind: $('kind'),
   bravo: $('bravo'),
   bravoField: $('bravo-field'),
@@ -246,6 +249,12 @@ function brief() {
   // position in Virginia.
   stack.setPosition(home, bearing(home, dest));
 
+  // The pinned strip carries the callsign: it is the thing people forget, and
+  // it scrolls away with the briefing the moment the transcript gets long.
+  els.callsign.textContent = WRITTEN.callsign(ac);
+  els.callsign.title = SPOKEN.callsign(ac);
+  els.tuned.hidden = false;
+
   step = 0;
   els.log.innerHTML = '';
   els.panel.hidden = false;
@@ -304,8 +313,10 @@ async function replay(s) {
   speaking = true;
   refreshControls();
   log('atc', `${s.facility}: ${s.reply}`);
+  setStatus(`${s.facility} is transmitting — key up to cut in.`);
   await speakThroughRadio(audio(), s.replySpeech ?? s.reply, voiceFor(s.facility));
   speaking = false;
+  setStatus('');
   refreshControls();
 }
 
@@ -317,8 +328,10 @@ async function transmit(s) {
   refreshControls();
   // Show the written form, speak the spoken one.
   log('atc', `${s.facility}: ${s.reply}`);
+  setStatus(`${s.facility} is transmitting — key up to cut in.`);
   await speakThroughRadio(r, s.replySpeech ?? s.reply, voiceFor(s.facility));
   speaking = false;
+  setStatus('');
   if (s.note) log('note', s.note);
   refreshControls();
 }
@@ -326,8 +339,11 @@ async function transmit(s) {
 /** Enable only the buttons that make sense for where the exchange has got to. */
 function refreshControls() {
   const s = currentStep();
-  const yourTurn = Boolean(s) && (!s.controllerFirst || s.transmitted) && !speaking;
-  els.ptt.disabled = !listener.available || !yourTurn;
+  // The push-to-talk key is never taken away mid-scenario. Disabling it while
+  // the controller talks means watching a dead button and guessing when your
+  // turn is; keying over them cuts them off, exactly as it would on frequency.
+  els.ptt.disabled = !listener.available || !s;
+  els.ptt.title = speaking ? 'Key up to cut the controller off' : 'Hold to transmit';
   els.hear.disabled = !s?.transmitted || speaking;
   els.hear.title = speaking
     ? 'The controller is still transmitting'
@@ -359,8 +375,10 @@ async function submitCall(said) {
     log('atc', `${s.facility}: ${reply}`);
     speaking = true;
     refreshControls();
+    setStatus(`${s.facility} is transmitting — key up to cut in.`);
     await speakThroughRadio(audio(), reply, voiceFor(s.facility));
     speaking = false;
+    setStatus('');
     log('note', 'Now make the request.');
     refreshControls();
     return;
@@ -456,6 +474,11 @@ function handleInput(said) {
 const listener = new Listener({
   onNote: (msg) => log('note', msg),
   onIdle: () => els.ptt.classList.remove('keyed'),
+  onStatus: (state) => {
+    if (state === 'listening') setStatus('Listening — release to send.', true);
+    else if (state === 'working') setStatus('Working out what you said…');
+    else setStatus('');
+  },
   onResult: (alts, engine) => {
     // The browser recogniser often gets aviation speech right only in its
     // second or third guess, so score them against what this step expects.
@@ -500,6 +523,13 @@ if (!listener.available) {
   els.ptt.title = 'This browser has no speech recognition — use "Type instead".';
 }
 
+/** One line saying what the radio is doing right now. */
+function setStatus(text, live = false) {
+  els.status.hidden = !text;
+  els.status.textContent = text ?? '';
+  els.status.classList.toggle('live', Boolean(live));
+}
+
 /** The tail number as it should sound, to anchor the recogniser. */
 function callsignSpeech() {
   return scenario?.ac ? SPOKEN.callsign(scenario.ac) : '';
@@ -508,6 +538,9 @@ function callsignSpeech() {
 function startListening() {
   if (!listener.available || listener.listening) return;
   audio();
+  // Never make someone wait out a transmission they have already understood.
+  // Keying up over the controller is what a real radio does anyway.
+  if (speaking) stopSpeaking();
   // Tell the recogniser what this step is expecting. It biases decoding
   // towards real phraseology without accepting a wrong readback as right.
   listener.setHint(hintFor(currentStep(), { callsign: callsignSpeech(), type: scenario?.ac?.type }));

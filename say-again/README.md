@@ -15,7 +15,7 @@ From the repo root:
 npm start
 ```
 
-Then open <http://localhost:8765/say-again/>. `npm test` runs 88 tests with no browser.
+Then open <http://localhost:8765/say-again/>. `npm test` runs 90 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
 
@@ -60,6 +60,13 @@ required. Before the controller speaks it shows the call to make; afterwards, th
 readback. Miss a readback twice and it opens by itself.
 
 ## The loop
+
+The push-to-talk key is never taken away. While the controller is transmitting
+it stays live, and keying up cuts them off — which is what a real radio does,
+and means you never sit watching a dead button waiting for a turn. A status line
+under the buttons says who is talking, when it is listening, and when it is
+working out what you said, so nothing happens in silence.
+
 
 1. **Brief a scenario** — pick a towered departure field and a destination
 2. **Make the call** — hold *Push to talk* (or the space bar), or type it

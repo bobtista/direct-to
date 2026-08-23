@@ -63,13 +63,18 @@
         </div>
       </section>
 
+      <div id="tuned" hidden>
+        <span class="lbl">Frequency</span>
+        <strong id="freq">---.---</strong>
+        <span id="freq-warn" hidden>not tuned</span>
+        <span id="facility">—</span>
+        <span id="whoami">
+          <span class="lbl">You are</span>
+          <strong id="callsign">—</strong>
+        </span>
+      </div>
+
       <section id="radio-panel" hidden>
-        <div id="tuned">
-          <span class="lbl">Frequency</span>
-          <strong id="freq">---.---</strong>
-          <span id="freq-warn" hidden>not tuned</span>
-          <span id="facility">—</span>
-        </div>
         <p id="prompt"></p>
 
         <div id="controls">
@@ -79,6 +84,7 @@
           <button id="show" type="button">Peek</button>
           <button id="mute" type="button" aria-pressed="false">Mute</button>
         </div>
+        <p id="status" hidden></p>
         <p id="ear" hidden></p>
 
         <form id="typed" hidden>

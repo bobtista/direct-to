@@ -82,7 +82,39 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   border-radius: 10px;
 }
 
-#tuned { display: flex; align-items: baseline; gap: 10px; }
+/* Pinned to the top of the page: while you are reading back down the
+   transcript you still need the frequency, who you are talking to, and — the
+   thing that is easiest to forget — your own callsign. */
+#tuned {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+#whoami {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+/* Outranks the green of `#tuned strong`: the frequency is what you are tuned
+   to, the callsign is who you are, and they should not compete. */
+#tuned #callsign {
+  font-family: "DejaVu Sans Mono", Menlo, monospace;
+  font-size: 19px;
+  color: var(--ink);
+  letter-spacing: 0.04em;
+}
 #tuned .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); }
 #tuned strong {
   font-family: "DejaVu Sans Mono", Menlo, monospace;
@@ -95,6 +127,32 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 #prompt { margin: 12px 0 14px; }
 
 #controls { display: flex; gap: 10px; flex-wrap: wrap; }
+
+#status {
+  margin: 10px 2px 0;
+  font-size: 13px;
+  color: var(--cyn);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 1.1s ease-in-out infinite;
+}
+
+#status.live { color: var(--red); }
+
+@keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.25 } }
+
+@media (prefers-reduced-motion: reduce) {
+  #status::before { animation: none; }
+}
 
 #ear { margin: 8px 2px 0; font-size: 12px; color: var(--dim); }
 #ear code { color: var(--cyn); font-size: 12px; }
