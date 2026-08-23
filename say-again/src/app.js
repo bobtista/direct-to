@@ -278,6 +278,11 @@ function showStep() {
     els.show.disabled = true;
     return;
   }
+  // Move the aeroplane to where this stage says it is, so the box agrees with
+  // the words: "five miles southeast of Norwood" should read five miles on the
+  // GPS, not leave you parked on the field for the whole flight.
+  if (s.where) stack.setPosition(s.where, s.where.trk);
+
   els.freq.textContent = s.freq;
   els.facility.textContent = s.facility;
   els.prompt.textContent = s.prompt;

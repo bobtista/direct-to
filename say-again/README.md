@@ -15,7 +15,7 @@ From the repo root:
 npm start
 ```
 
-Then open <http://localhost:8765/say-again/>. `npm test` runs 81 tests with no browser.
+Then open <http://localhost:8765/say-again/>. `npm test` runs 84 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
 
@@ -185,6 +185,23 @@ time recorded, which is what prompt-echo looks like when it happens.
 Both engines feed one interface in `src/listen.js`, so the rest of the app does
 not know or care which one is running.
 
+## Where the aeroplane is
+
+Every step carries a `where` — a latitude, a longitude and a track — and the box
+is moved there when the step comes up. It does not fly; it jumps, once per
+stage, which is all the scenarios need.
+
+The positions are not invented. Each one is derived from the same numbers that
+build the words, so *"five miles southeast of Norwood, climbing through two
+thousand"* puts you five miles southeast of Norwood on the GPS. A test asserts
+the two agree, because a trainer whose instruments contradict its script is
+teaching the wrong lesson twice.
+
+That structure earned itself immediately: with the geometry written down rather
+than described in prose, the Class B scenario turned out to have been reporting
+the wrong side of Boston — *"twenty miles northeast"* when the route puts you
+southwest of the field.
+
 ## Structure
 
 | File | Role |
@@ -219,10 +236,6 @@ final say.
 
 ## Known gaps
 
-- **The aeroplane does not move during a scenario.** It is placed at the
-  departure field when you brief, which is right for the ramp, the run-up and
-  the takeoff clearance, but the en-route steps still show you sitting on the
-  field. Good enough to tune and navigate against; not a flight model.
 
 - **No arrivals into a towered field yet.** Departure, untowered and Class B
   transition are built; the towered arrival — approach, tower, taxi in — is not.

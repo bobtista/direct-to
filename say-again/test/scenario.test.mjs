@@ -6,6 +6,9 @@ import {
   untoweredPattern,
   classBTransition,
   activeRunway,
+  distanceNm,
+  compassPoint,
+  bearing,
 } from '../src/scenario.js';
 import { grade, isCallup } from '../src/grade.js';
 
@@ -302,4 +305,47 @@ test('every scenario grades its own model answer as correct', () => {
     }
   }
   assert.ok(checked > 15, `expected to check most steps, checked ${checked}`);
+});
+
+test('every step says where the aeroplane is', () => {
+  const scenarios = [
+    departureWithFlightFollowing({ home: byId.get('KOWD'), dest: byId.get('KPYM'), ac, wx }),
+    untoweredPattern({ home: byId.get('KPYM'), dest: byId.get('KPYM'), ac, wx }),
+    classBTransition({
+      home: byId.get('KOWD'), dest: byId.get('KPYM'), bravo: byId.get('KBOS'), ac, wx,
+    }),
+  ];
+  for (const sc of scenarios) {
+    for (const s of sc.steps) {
+      assert.ok(s.where, `${sc.title} / ${s.id} has no position`);
+      assert.ok(Number.isFinite(s.where.lat) && Number.isFinite(s.where.lon), `${s.id} position is not a coordinate`);
+    }
+  }
+});
+
+test('the position matches the distance the call states', () => {
+  // The script says "five miles southeast of Norwood". If the GPS disagrees,
+  // one of them is teaching the wrong thing.
+  const owd = byId.get('KOWD');
+  const sc = departureWithFlightFollowing({ home: owd, dest: byId.get('KPYM'), ac, wx });
+  const at = (id) => sc.steps.find((s) => s.id === id);
+
+  assert.equal(distanceNm(owd, at('ground').where).toFixed(1), '0.0', 'still on the ramp');
+  assert.equal(distanceNm(owd, at('approach').where).toFixed(1), '5.0', 'the call says five miles');
+  assert.equal(distanceNm(owd, at('radar-contact').where).toFixed(1), '6.0', 'the call says six miles');
+});
+
+test('a position report names the direction you are actually in', () => {
+  // This was inverted: departing Norwood, the script had you twenty miles
+  // NORTHEAST of Boston while you were in fact southwest of it.
+  const bravo = byId.get('KBOS');
+  const sc = classBTransition({
+    home: byId.get('KOWD'), dest: byId.get('KPYM'), bravo, ac, wx,
+  });
+  const request = sc.steps.find((s) => s.id === 'request');
+
+  assert.equal(distanceNm(bravo, request.where).toFixed(1), '20.0');
+  const actual = compassPoint(bearing(bravo, request.where));
+  assert.match(request.example, new RegExp(actual), `you are ${actual} of the Bravo — the call should say so`);
+  assert.equal(actual, 'southwest');
 });

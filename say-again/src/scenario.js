@@ -39,8 +39,25 @@ const POINTS = ['north', 'northeast', 'east', 'southeast', 'south', 'southwest',
 /** "southeast" — the direction of flight you give Ground. */
 export const compassPoint = (brg) => POINTS[Math.round((brg % 360) / 45) % 8];
 
-/** The reciprocal, for saying where you are relative to a field. */
-export const fromDirection = (brg) => compassPoint((brg + 180) % 360);
+/** Great-circle distance, near enough over the ranges a scenario covers. */
+export function distanceNm(a, b) {
+  const dLat = (b.lat - a.lat) * 60;
+  const dLon = (b.lon - a.lon) * 60 * Math.cos(rad((a.lat + b.lat) / 2));
+  return Math.hypot(dLat, dLon);
+}
+
+/**
+ * Where you end up `nm` along `brg` from a point.
+ *
+ * Used to put the aeroplane where each step says it is, so the box agrees with
+ * the words: "five miles southeast of Norwood" and the GPS should not disagree.
+ */
+export function project(from, brg, nm) {
+  const lat = from.lat + (nm / 60) * Math.cos(rad(brg));
+  const lon =
+    from.lon + ((nm / 60) * Math.sin(rad(brg))) / Math.max(0.05, Math.cos(rad(from.lat)));
+  return { lat, lon };
+}
 
 /** Pick a plausible active runway from the wind. */
 export function activeRunway(airport, windDir) {
@@ -144,7 +161,11 @@ function render(build, ctx) {
 // --- towered departure with flight following --------------------------------
 
 function departureSteps(r, ctx) {
-  const { home, dest, ac, wx, rwy, field, gnd, twr, dep, depName, code, cruise, direction, departure } = ctx;
+  const { home, dest, ac, wx, rwy, rwyHdg, course, field, gnd, twr, dep, depName, code, cruise, direction, departure } = ctx;
+  // Where the aeroplane is at each stage, so the GPS agrees with the words.
+  const onField = { lat: home.lat, lon: home.lon, trk: rwyHdg };
+  const enRoute = (nm) => ({ ...project(home, course, nm), trk: course });
+  const legNm = distanceNm(home, dest);
   const full = r.callsign(ac);
   const abbr = r.callsign(ac, { abbreviated: true });
   const next = (dest.freq.approach ?? dest.freq.tower ?? { mhz: dep }).mhz;
@@ -152,6 +173,7 @@ function departureSteps(r, ctx) {
   return [
     {
       id: 'ground',
+      where: onField,
       mode: 'readback',
       facility: `${field} Ground`,
       freq: gnd,
@@ -166,6 +188,7 @@ function departureSteps(r, ctx) {
     },
     {
       id: 'tower',
+      where: onField,
       mode: 'readback',
       facility: `${field} Tower`,
       freq: twr,
@@ -186,6 +209,7 @@ function departureSteps(r, ctx) {
     },
     {
       id: 'tower-handoff',
+      where: enRoute(3),
       mode: 'readback',
       facility: `${field} Tower`,
       freq: twr,
@@ -198,6 +222,7 @@ function departureSteps(r, ctx) {
     },
     {
       id: 'approach',
+      where: enRoute(5),
       mode: 'readback',
       facility: depName,
       freq: dep,
@@ -212,6 +237,7 @@ function departureSteps(r, ctx) {
     },
     {
       id: 'radar-contact',
+      where: enRoute(6),
       mode: 'readback',
       facility: depName,
       freq: dep,
@@ -226,6 +252,7 @@ function departureSteps(r, ctx) {
     },
     {
       id: 'traffic',
+      where: enRoute(Math.min(12, legNm * 0.5)),
       mode: 'readback',
       facility: depName,
       freq: dep,
@@ -241,6 +268,7 @@ function departureSteps(r, ctx) {
     },
     {
       id: 'handoff',
+      where: enRoute(Math.min(25, legNm * 0.8)),
       mode: 'readback',
       facility: depName,
       freq: dep,
@@ -257,13 +285,18 @@ function departureSteps(r, ctx) {
 // --- untowered: nobody answers ----------------------------------------------
 
 function untoweredSteps(r, ctx) {
-  const { home, ac, wx, rwy, field, ctaf, direction } = ctx;
+  const { home, ac, wx, rwy, rwyHdg, course, field, ctaf, direction } = ctx;
   const full = r.callsign(ac);
   const side = patternSide();
   const bookend = `${field} traffic`;
 
-  const announce = (id, prompt, example, requires, why, note) => ({
+  const onField = { lat: home.lat, lon: home.lon, trk: rwyHdg };
+  // The pattern legs sit a mile or two off the field, on the runway heading.
+  const offField = (nm, brg = course) => ({ ...project(home, brg, nm), trk: brg });
+
+  const announce = (id, where, prompt, example, requires, why, note) => ({
     id,
+    where,
     mode: 'announce',
     facility: `${field} CTAF`,
     freq: ctaf,
@@ -279,6 +312,7 @@ function untoweredSteps(r, ctx) {
   return [
     announce(
       'taxi',
+      onField,
       `Ramp to the run-up area, runway ${r.runway(rwy)} in use. Nobody will answer — announce anyway.`,
       `${bookend}, ${full}, taxiing to runway ${r.runway(rwy)}, ${field}.`,
       [
@@ -289,6 +323,7 @@ function untoweredSteps(r, ctx) {
     ),
     announce(
       'departing',
+      onField,
       `Run-up complete, holding short of ${r.runway(rwy)}. Announce departure and your intention.`,
       `${bookend}, ${full}, departing runway ${r.runway(rwy)}, ${side} closed traffic, ${field}.`,
       [
@@ -300,6 +335,7 @@ function untoweredSteps(r, ctx) {
     ),
     announce(
       'departing-pattern',
+      offField(4),
       'Off and climbing. Announce leaving the pattern.',
       `${bookend}, ${full}, departing the pattern to the ${direction}, ${field}.`,
       [
@@ -310,6 +346,7 @@ function untoweredSteps(r, ctx) {
     ),
     announce(
       'inbound',
+      offField(10),
       'Returning. First inbound call — about ten miles out.',
       `${bookend}, ${full}, ${r.digits('10')} miles ${direction}, inbound for landing, ${field}.`,
       [
@@ -321,6 +358,7 @@ function untoweredSteps(r, ctx) {
     ),
     announce(
       'overfly',
+      offField(5),
       `Five miles out. You plan to overfly midfield and teardrop onto the ${side} downwind for ${r.runway(rwy)}.`,
       `${bookend}, ${full}, ${r.digits('5')} miles ${direction}, will overfly midfield and join ${side} downwind runway ${r.runway(rwy)}, ${field}.`,
       [
@@ -332,6 +370,7 @@ function untoweredSteps(r, ctx) {
     ),
     announce(
       'downwind',
+      offField(1.5, (rwyHdg + 90) % 360),
       `Established ${side} downwind for ${r.runway(rwy)}.`,
       `${bookend}, ${full}, ${side} downwind runway ${r.runway(rwy)}, ${field}.`,
       [
@@ -343,6 +382,7 @@ function untoweredSteps(r, ctx) {
     ),
     announce(
       'final',
+      offField(2, (rwyHdg + 180) % 360),
       `Turning final for ${r.runway(rwy)}.`,
       `${bookend}, ${full}, ${side} base to final runway ${r.runway(rwy)}, ${field}.`,
       [
@@ -354,6 +394,7 @@ function untoweredSteps(r, ctx) {
     ),
     announce(
       'clear',
+      onField,
       'Down and clear of the runway.',
       `${bookend}, ${full}, clear of runway ${r.runway(rwy)}, ${field}.`,
       [
@@ -374,12 +415,18 @@ function classBSteps(r, ctx) {
   const bravo = ctx.bravo;
   const appName = facilityName(bravo);
   const appFreq = (bravo.freq.approach ?? bravo.freq.departure)?.mhz;
-  const dirFromBravo = fromDirection(bearing(bravo, home));
+  const dirFromBravo = compassPoint(bearing(bravo, home));
   const code = ctx.code;
+  // The transition runs in past the Bravo and out the other side toward the
+  // destination, so positions are measured from the Bravo, not from home.
+  const inbound = bearing(bravo, home);
+  const outbound = bearing(bravo, dest);
+  const nearBravo = (nm, brg) => ({ ...project(bravo, brg, nm), trk: (brg + 180) % 360 });
 
   return [
     {
       id: 'request',
+      where: nearBravo(20, inbound),
       mode: 'readback',
       facility: appName,
       freq: appFreq,
@@ -397,6 +444,7 @@ function classBSteps(r, ctx) {
     },
     {
       id: 'cleared',
+      where: nearBravo(12, inbound),
       mode: 'readback',
       facility: appName,
       freq: appFreq,
@@ -415,6 +463,7 @@ function classBSteps(r, ctx) {
     },
     {
       id: 'altitude-change',
+      where: nearBravo(3, inbound),
       mode: 'readback',
       facility: appName,
       freq: appFreq,
@@ -427,6 +476,7 @@ function classBSteps(r, ctx) {
     },
     {
       id: 'leaving',
+      where: nearBravo(10, outbound),
       mode: 'readback',
       facility: appName,
       freq: appFreq,
