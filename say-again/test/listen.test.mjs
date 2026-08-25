@@ -201,3 +201,34 @@ test('a trailing draft is kept on the end of the finished phrases', () => {
   assert.equal(results.length, 1);
   assert.match(results[0][0][0], /five sierra papa request taxi$/);
 });
+
+test('a recogniser that refuses to start gives the key back', () => {
+  // Every way out of a transmission has to clear the keyed state. These used to
+  // return early and leave the button lit and the status stuck on "Listening"
+  // with no way back but a reload.
+  const { l, idle } = listenerWithFakeSR();
+  l._sr.start = () => { throw new Error('already started'); };
+  const status = [];
+  l.onStatus = (x) => status.push(x);
+
+  l.start();
+  assert.equal(l.listening, false, 'not listening if it never started');
+  assert.equal(idle(), 1, 'the button was released');
+  assert.equal(status.at(-1), '', 'the status was cleared');
+});
+
+test('settling twice is harmless', () => {
+  const { l, idle } = listenerWithFakeSR();
+  l.start();
+  l._sr.stop();
+  const after = idle();
+  l._settle();
+  assert.equal(l.listening, false);
+  assert.ok(idle() >= after);
+});
+
+test('settling reports why, when there is a reason', () => {
+  const { l, notes } = listenerWithFakeSR();
+  l._settle('Microphone unavailable: NotAllowedError');
+  assert.deepEqual(notes, ['Microphone unavailable: NotAllowedError']);
+});

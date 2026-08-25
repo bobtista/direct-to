@@ -9,6 +9,9 @@
 // still type, and without the local server you get the browser recogniser.
 
 const HEALTH_TIMEOUT_MS = 900;
+// Long enough for the model to chew through a wordy call, short enough that a
+// wedged server gives the key back rather than stranding it.
+const TRANSCRIBE_TIMEOUT_MS = 25000;
 const DEFAULT_ENDPOINT = 'http://127.0.0.1:8781';
 
 // Safari's MediaRecorder produces mp4/aac, Chrome and Firefox webm/opus. The
@@ -134,9 +137,7 @@ export class Listener {
       // Recognition can end on its own — a pause, a timeout, a lost mic — so
       // the button state has to follow the recogniser rather than the key.
       this._sr.onend = () => {
-        this.listening = false;
-        this.onIdle();
-        this.onStatus('');
+        this._settle();
         this._submit();
       };
       this.engine = 'browser';
@@ -201,13 +202,29 @@ export class Listener {
     else this._sr?.stop();
   }
 
+  /**
+   * Every way out of a transmission ends here, exactly once.
+   *
+   * There are more of those than there look to be — a stray tap too short to
+   * hold audio, the key released before the microphone opened, a recogniser
+   * that threw on start, a server that never answered. Each one used to return
+   * on its own and leave the button keyed and the status reading "Listening"
+   * forever, with no way back short of a reload.
+   */
+  _settle(note) {
+    this.listening = false;
+    this.onIdle();
+    this.onStatus('');
+    if (note) this.onNote(note);
+  }
+
   // --- browser recogniser ---
 
   _startBrowser() {
     try {
       this._sr.start();
     } catch {
-      this.listening = false;
+      this._settle();
     }
   }
 
@@ -256,13 +273,11 @@ export class Listener {
         audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
       });
     } catch (err) {
-      this.listening = false;
-      this.onStatus('');
-      this.onIdle();
-      this.onNote(`Microphone unavailable: ${err.name}`);
+      this._settle(`Microphone unavailable: ${err.name}`);
       return;
     }
-    if (!this.listening) return; // released the key while permission was pending
+    // Released the key while the permission prompt was still up.
+    if (!this.listening) return this._settle();
 
     this._chunks = [];
     this._recorder = new MediaRecorder(this._stream, { mimeType: this._format.mime });
@@ -272,37 +287,47 @@ export class Listener {
   }
 
   _stopRecording() {
-    if (this._recorder?.state === 'recording') this._recorder.stop();
+    // No live recorder means `onstop` will never fire, so nothing downstream
+    // would ever clear the keyed state.
+    if (this._recorder?.state !== 'recording') return this._settle();
+    this._recorder.stop();
   }
 
   async _send() {
     const blob = new Blob(this._chunks, { type: this._format.mime });
     this._chunks = [];
     // A stray tap is not a transmission.
-    if (blob.size < 1200) return;
+    if (blob.size < 1200) {
+      return this._settle('That was too quick to catch — hold the key down while you speak.');
+    }
 
     this.onStatus('working');
     const url = `${this.endpoint}/transcribe?ext=${this._format.ext}` +
       `&hint=${encodeURIComponent(this.hint)}`;
+    // A model that never answers must not hold the key down forever.
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), TRANSCRIBE_TIMEOUT_MS);
     try {
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': this._format.mime },
         body: blob,
+        signal: ctl.signal,
       });
       const out = await res.json();
       if (out.error) throw new Error(out.error);
       const text = (out.text ?? '').trim();
-      this.onIdle();
-      this.onStatus('');
+      this._settle();
       if (text) this.onResult([text], 'atc');
       else if (out.dropped) this.onNote('That did not come through — say again.');
       else this.onNote('Nothing heard — hold the key while you speak.');
     } catch (err) {
       // Losing the server mid-session should degrade, not break.
-      this.onStatus('');
-      this.onNote(`Local recogniser failed (${err.message}); falling back to the browser.`);
+      const why = err.name === 'AbortError' ? 'it did not answer in time' : err.message;
+      this._settle(`Local recogniser failed (${why}); falling back to the browser.`);
       this.engine = this._sr ? 'browser' : null;
+    } finally {
+      clearTimeout(timer);
     }
   }
 }

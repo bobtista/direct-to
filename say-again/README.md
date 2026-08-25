@@ -15,7 +15,7 @@ From the repo root:
 npm start
 ```
 
-Then open <http://localhost:8765/say-again/>. `npm test` runs 90 tests with no browser.
+Then open <http://localhost:8765/say-again/>. `npm test` runs 93 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
 
@@ -170,6 +170,12 @@ The page probes for it on load. If it is there, push-to-talk records your audio
 and sends it to the model; if it is not, nothing changes and the browser
 recogniser handles it as before. Audio never leaves the machine and there is
 nothing to pay for.
+
+Transcribing takes about three and a half seconds for a normal-length call —
+it is a 769M-parameter model on the CPU, and the status line says *"Working out
+what you said…"* while it runs. Beam width makes no measurable difference to
+that; the model size is the cost. It is a fair trade for a transcript that
+actually says "five sierra papa".
 
 **This only works when the page is served locally.** The hosted copy on GitHub
 Pages runs everything else — scenarios, grading, the radio audio, the GPS box —
