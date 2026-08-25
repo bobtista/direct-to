@@ -358,7 +358,10 @@ function log(kind, text) {
   div.className = `entry ${kind}`;
   div.textContent = text;
   els.log.appendChild(div);
-  div.scrollIntoView({ block: 'nearest' });
+  // `nearest` counts an entry as visible when it is merely inside the
+  // viewport, which includes the strip hidden behind the docked controls.
+  // Anchoring to the bottom edge makes the scroll margin actually apply.
+  div.scrollIntoView({ block: 'end', behavior: 'smooth' });
 }
 
 /** Grade what the pilot said, report it, and advance. */
@@ -491,6 +494,15 @@ const listener = new Listener({
     handleInput(best);
   },
 });
+
+// The dock overlays the foot of the page, so the transcript needs to know how
+// much room to leave when it scrolls a new entry into view.
+new ResizeObserver(() => {
+  // The border box, not contentRect: the dock's own padding and border are a
+  // good 34px, and leaving them out tucks the newest entry underneath it.
+  const h = Math.round(els.panel.getBoundingClientRect().height);
+  document.documentElement.style.setProperty('--dock-h', `${h}px`);
+}).observe(els.panel);
 
 listener.probe().then(() => {
   showEngine();

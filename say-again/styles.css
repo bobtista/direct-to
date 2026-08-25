@@ -75,12 +75,24 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 #banner { color: var(--cyn); font-size: 13px; margin: 14px 2px; }
 
+/* Docked to the bottom of the viewport. New transmissions land at the bottom
+   of the transcript, so the key you answer them with belongs there too —
+   scrolling back through a long exchange should never cost you the buttons. */
 #radio-panel {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  margin-top: 14px;
   padding: 16px;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 10px;
+  box-shadow: 0 -10px 24px -12px rgba(0, 0, 0, 0.85);
 }
+
+/* Auto-scrolling the newest entry must not tuck it under the dock. The height
+   is measured at runtime, since Peek and the typing box change it. */
+.entry { scroll-margin-bottom: calc(var(--dock-h, 200px) + 12px); }
 
 /* Pinned to the top of the page: while you are reading back down the
    transcript you still need the frequency, who you are talking to, and — the

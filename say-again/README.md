@@ -61,6 +61,11 @@ readback. Miss a readback twice and it opens by itself.
 
 ## The loop
 
+The screen holds still around a growing transcript: the frequency and your
+callsign pinned at the top, the prompt and the buttons docked at the bottom,
+the exchange scrolling between them. Scrolling back through a long session
+never costs you the key you answer with.
+
 The push-to-talk key is never taken away. While the controller is transmitting
 it stays live, and keying up cuts them off — which is what a real radio does,
 and means you never sit watching a dead button waiting for a turn. A status line
