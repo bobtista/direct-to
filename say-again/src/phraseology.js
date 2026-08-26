@@ -146,6 +146,27 @@ Object.assign(WORD_TO_LETTER, {
   juliett: 'J', alfa: 'A', xray: 'X', 'x-ray': 'X', 'x ray': 'X',
 });
 
+
+// Directly after "runway", these are digits and nothing else. They would be far
+// too dangerous everywhere — "climb to three thousand" must never become "climb
+// 23 thousand" — but in the couple of tokens following "runway" there is no
+// other sensible reading, and recognisers produce them constantly: "runway to
+// eight", "runway for left".
+const RUNWAY_DIGITS = {
+  to: '2', too: '2', two: '2',
+  for: '4', fore: '4', four: '4', fower: '4',
+  ate: '8', eight: '8',
+  won: '1', one: '1',
+  tree: '3', three: '3',
+  fife: '5', five: '5',
+  six: '6', seven: '7',
+  niner: '9', nine: '9',
+  zero: '0', oh: '0',
+};
+
+// Words that sit between "runway" and its number without being part of it.
+const RUNWAY_FILLER = new Set(['of', 'the', 'is', 'at', 'on', 'number']);
+
 /**
  * Collapse a spoken readback into something comparable.
  *
@@ -155,7 +176,8 @@ Object.assign(WORD_TO_LETTER, {
 export function normalize(text) {
   const words = String(text)
     .toLowerCase()
-    .replace(/[.,!?]/g, ' ')
+    // Recognisers punctuate digits they are unsure of: "runway 2:8".
+    .replace(/[.,!?:;/]/g, ' ')
     .replace(/-/g, ' ')
     // Recognisers split these; rejoin before lookup.
     .replace(/\bx\s+ray\b/g, 'xray')
@@ -164,8 +186,36 @@ export function normalize(text) {
     .filter(Boolean);
 
   const out = [];
+  let runwaySlots = 0;
   for (let i = 0; i < words.length; i++) {
     const w = words[i];
+
+    // A runway designator is at most two digits plus a side, so this window
+    // closes fast and the homophones cannot leak into ordinary speech.
+    if (w === 'runway' || w === 'runways') {
+      runwaySlots = 2;
+      out.push(' RUNWAY ');
+      continue;
+    }
+    if (runwaySlots > 0) {
+      if (RUNWAY_FILLER.has(w)) continue;
+      if (RUNWAY_DIGITS[w] !== undefined) {
+        runwaySlots -= 1;
+        out.push(RUNWAY_DIGITS[w]);
+        continue;
+      }
+      if (/^\d+$/.test(w)) {
+        runwaySlots -= w.length;
+        out.push(...w);
+        continue;
+      }
+      if (/^[lcr]$/.test(w) || ['left', 'right', 'center', 'centre'].includes(w)) {
+        runwaySlots = 0;
+        out.push(w[0].toUpperCase());
+        continue;
+      }
+      runwaySlots = 0;
+    }
     // "point"/"decimal" separate a frequency but carry nothing to grade, and
     // dropping them lets "one two four point one" match "124.1".
     if (w === 'point' || w === 'decimal') continue;

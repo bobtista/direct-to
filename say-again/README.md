@@ -15,7 +15,7 @@ From the repo root:
 npm start
 ```
 
-Then open <http://localhost:8765/say-again/>. `npm test` runs 93 tests with no browser.
+Then open <http://localhost:8765/say-again/>. `npm test` runs 97 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
 
@@ -120,6 +120,13 @@ When the recogniser mangles your callsign, the log shows what it heard so you
 can tell a bad transcription from a bad call. When it hears nothing at all —
 a blocked microphone, a key-up that came too early — it says that too, rather
 than leaving you wondering whether the call was wrong.
+
+A runway number is read in context. Recognisers turn "runway two eight" into
+*"runway to 8"*, *"runway 2:8"*, *"runway to eight"* — and directly after the
+word "runway" there is no other sensible reading, so all of them count. The
+window is two tokens wide and closes immediately, because the same homophones
+everywhere would be a disaster: *"climb to three thousand"* must never become
+*"climb 23 thousand"*. Reading back the wrong runway still fails.
 
 Grading works on meaning, not spelling: *"one two four point one"* and
 *"124.1"* are the same thing, and so are *"niner"* and *"9"*, *"cleared for take

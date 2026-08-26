@@ -140,3 +140,38 @@ test('digits elsewhere in the transmission cannot stand in for a callsign', () =
   // The field name last is not a callsign either.
   assert.ok(!soundsLikeCallsign('Plymouth traffic, left downwind runway zero six, Plymouth', tail));
 });
+
+test('a runway number survives the homophones recognisers produce', () => {
+  // Real transcripts from a practice session: "runway two eight" comes back as
+  // "runway to 8", "runway 2:8", "runway to eight". All of them are runway 28
+  // and nothing else — after the word "runway" there is no other reading.
+  for (const said of [
+    'taxi runway to 8 hold short runway to 8',
+    'taxi runway 2:8 hold short',
+    'runway to eight via alpha',
+    'runway two eight',
+    'runway 28',
+  ]) {
+    assert.ok(contains(said, 28), `"${said}" should read as runway 28, got ${normalize(said)}`);
+  }
+});
+
+test('a runway side is kept', () => {
+  assert.ok(contains('runway for left', '4L'));
+  assert.ok(contains('runway one seven right', '17R'));
+});
+
+test('the wrong runway is still wrong', () => {
+  // The homophone window must not be so eager that it matches anything.
+  assert.ok(!contains('runway two six hold short runway two six', 28));
+  assert.ok(!contains('runway 26', 28));
+  assert.ok(!contains('taxi via alpha hold short', 28));
+});
+
+test('the runway window does not leak into ordinary speech', () => {
+  // This is the regression that made these homophones unsafe globally.
+  assert.equal(normalize('climb to three thousand'), 'CLIMB TO 3 THOUSAND');
+  assert.equal(normalize('cleared for takeoff'), 'CLEARED FOR TAKEOFF');
+  // Two tokens is the whole window: "runway 28" then back to normal.
+  assert.equal(normalize('runway 28 climb to four thousand'), 'RUNWAY 28 CLIMB TO 4 THOUSAND');
+});
