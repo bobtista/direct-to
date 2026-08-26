@@ -53,20 +53,16 @@ export function pickFormat(supported = (m) => window.MediaRecorder?.isTypeSuppor
  * browser recogniser reliably destroys, and no amount of biasing invents one
  * out of silence.
  */
-const RADIO_VOCABULARY =
-  'Air traffic control radio transmission using the phonetic alphabet: ' +
-  'alpha bravo charlie delta echo foxtrot golf hotel india juliett kilo lima ' +
-  'mike november oscar papa quebec romeo sierra tango uniform victor whiskey ' +
-  'xray yankee zulu, niner and tree for nine and three. ' +
-  'Typical words: runway, taxi via, hold short, line up and wait, cleared for ' +
-  'takeoff, squawk, ident, radar contact, altimeter, climb and maintain, ' +
-  'contact approach on, traffic in sight, wilco, roger.';
-
+// Kept deliberately short. A long word list is a standing invitation for the
+// model to echo the list back instead of transcribing you, and measured against
+// clean, noisy and noise-only audio it scored no better than one plain sentence.
+// The callsign is the part worth anchoring: it is on every transmission and it
+// is the thing recognisers reliably destroy.
 export function hintFor(step, { callsign = '', type = '' } = {}) {
-  const bits = [RADIO_VOCABULARY];
-  if (callsign) bits.push(`This aircraft is ${callsign}.`);
-  else if (type) bits.push(`This aircraft is a ${type}.`);
-  return bits.join(' ').slice(0, 900);
+  const who = callsign || type;
+  return who
+    ? `Air traffic control radio transmission from ${who}.`
+    : 'Air traffic control radio transmission.';
 }
 
 /** Is this page being served from the same machine the recogniser would run on? */

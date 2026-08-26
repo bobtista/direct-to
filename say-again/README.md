@@ -15,7 +15,7 @@ From the repo root:
 npm start
 ```
 
-Then open <http://localhost:8765/say-again/>. `npm test` runs 97 tests with no browser.
+Then open <http://localhost:8765/say-again/>. `npm test` runs 96 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
 
@@ -197,11 +197,21 @@ and showing that to someone who is not running the server would be noise. So
 the page only looks for the recogniser when it is itself on `localhost`. Run it
 locally and it just works.
 
-**What makes it accurate is the hint.** Each transmission is sent with the
-vocabulary of the radio — the phonetic alphabet, "niner" and "tree", the stock
-phrases — and this aircraft's callsign in spoken form. Whisper conditions its
-decoding on that text, which is what pulls "five sierra papa" back to the right
-tokens.
+**The hint is one short sentence** naming the aircraft: *"Air traffic control
+radio transmission from Skyhawk seven two five sierra papa."* Whisper conditions
+its decoding on it, and the callsign is the part worth anchoring — it is on
+every transmission and it is what recognisers reliably destroy.
+
+It used to be a long list of the phonetic alphabet and stock phrases. Measured
+against clean, noisy and noise-only audio that scored no better than the one
+sentence, and a long word list is a standing invitation for the model to echo
+the list back at you instead of transcribing.
+
+Decoder settings are left at their defaults on purpose. `temperature` in
+particular is a fallback ladder, not a number: pinning it to zero disables the
+retry that fires when output looks degenerate, which is how a transmission comes
+back as *"lima oscar papa sierra lima mike sierra papa"*. Whisper's repetition
+loops need that escape hatch.
 
 The hint deliberately leaves out the values the step is grading: the runway, the
 squawk, the frequency. Priming the model with the right answer risks it hearing

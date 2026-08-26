@@ -82,7 +82,16 @@ def transcribe(audio: bytes, hint: str = "", ext: str = "webm") -> dict:
             # and squawk codes come back right.
             initial_prompt=hint or None,
             condition_on_previous_text=False,
-            temperature=0.0,
+            # Leave `temperature` alone. Its default is a fallback ladder, and
+            # pinning it to 0.0 disables the retry that compression_ratio_
+            # threshold triggers on degenerate output — which is exactly how a
+            # transmission comes back as "lima oscar papa sierra lima mike
+            # sierra papa". Whisper's repetition loops need that escape hatch.
+            compression_ratio_threshold=2.4,
+            log_prob_threshold=-1.0,
+            no_speech_threshold=0.6,
+            # Drop invented words that appear over silence.
+            hallucination_silence_threshold=2.0,
             vad_filter=True,
             vad_parameters={"min_silence_duration_ms": 300},
         )

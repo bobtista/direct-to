@@ -21,13 +21,6 @@ test('the hint carries the callsign in spoken form', () => {
   assert.match(hint, /seven two five sierra papa/);
 });
 
-test('the hint primes the phonetic alphabet', () => {
-  const hint = hintFor(null);
-  assert.match(hint, /sierra/);
-  assert.match(hint, /papa/);
-  assert.match(hint, /niner/);
-});
-
 test('the hint never leaks the values the step is grading', () => {
   // Priming Whisper with the right answer would let it hear the right answer
   // when the pilot said the wrong one, which would pass a bad readback.
@@ -42,7 +35,7 @@ test('the hint never leaks the values the step is grading', () => {
 });
 
 test('with no callsign yet, the aircraft type anchors it instead', () => {
-  assert.match(hintFor(null, { type: 'Skyhawk' }), /is a Skyhawk/);
+  assert.match(hintFor(null, { type: 'Skyhawk' }), /from Skyhawk/);
 });
 
 test('a missing step still produces a usable hint', () => {
@@ -50,8 +43,10 @@ test('a missing step still produces a usable hint', () => {
   assert.match(hintFor(undefined, { callsign: '' }), /radio transmission/i);
 });
 
-test('the hint stays inside the prompt budget', () => {
-  assert.ok(hintFor({}, { callsign: 'x '.repeat(500) }).length <= 900);
+test('the hint stays short', () => {
+  // A long prompt invites the model to echo it rather than transcribe you.
+  assert.ok(hintFor({}, { callsign: 'Skyhawk seven two five sierra papa' }).length < 120);
+  assert.doesNotMatch(hintFor({}, { callsign: 'Skyhawk five sierra papa' }), /bravo|charlie|quebec/);
 });
 
 test('only a locally served page looks for the local recogniser', () => {
