@@ -21,6 +21,10 @@ export const PAGE_GROUPS = [
 
 export const MAP_RANGES = [1, 2, 3, 5, 10, 15, 20, 30, 40, 60, 80, 100, 150, 200];
 
+
+/** Modulo that stays positive, so a knob turned backwards wraps properly. */
+const wrap = (i, n) => ((i % n) + n) % n;
+
 /** Sequence to the next leg once inside this distance of the active waypoint. */
 const SEQUENCE_NM = 0.6;
 
@@ -803,26 +807,37 @@ export class GNS {
 
   // --- radio tuning --------------------------------------------------------
 
+  /**
+   * Tune the standby frequency.
+   *
+   * The two halves of the knob are independent, as they are on the real box:
+   * the large one moves the megahertz and the small one moves the kilohertz,
+   * and neither carries into the other. Rolling the small knob past .975 wraps
+   * to .000 of the *same* megahertz — it does not step you up a channel — and
+   * rolling the large knob past the top of the band keeps the kilohertz you
+   * had. Adding a float to the whole frequency does neither.
+   */
   #tuneFreq(dir, part) {
     const isCom = this.tuning === 'COM';
     const band = isCom ? this.com : this.vloc;
-    const n = Number(band.standby);
-    let v;
-    if (isCom) {
-      v = part === 'whole' ? n + dir : n + dir * 0.025;
-      const lo = 118;
-      const hi = 136.975;
-      if (v < lo) v = hi;
-      if (v > hi) v = lo;
-      band.standby = v.toFixed(3);
+    // 118.000–136.975 in 25 kHz steps for COM; 108.00–117.95 in 50 kHz for VLOC.
+    const spec = isCom
+      ? { loMhz: 118, mhzCount: 19, stepKhz: 25, decimals: 3 }
+      : { loMhz: 108, mhzCount: 10, stepKhz: 50, decimals: 2 };
+    const channels = 1000 / spec.stepKhz;
+
+    // Integer kilohertz throughout: 0.025 cannot be represented exactly, and
+    // repeated addition drifts far enough to show up in the display.
+    const total = Math.round(Number(band.standby) * 1000);
+    let mhz = Math.floor(total / 1000);
+    let khz = total - mhz * 1000;
+
+    if (part === 'whole') {
+      mhz = spec.loMhz + wrap(mhz - spec.loMhz + dir, spec.mhzCount);
     } else {
-      v = part === 'whole' ? n + dir : n + dir * 0.05;
-      const lo = 108;
-      const hi = 117.95;
-      if (v < lo) v = hi;
-      if (v > hi) v = lo;
-      band.standby = v.toFixed(2);
+      khz = wrap(Math.round(khz / spec.stepKhz) + dir, channels) * spec.stepKhz;
     }
+    band.standby = ((mhz * 1000 + khz) / 1000).toFixed(spec.decimals);
   }
 
   // --- simulated flight ----------------------------------------------------

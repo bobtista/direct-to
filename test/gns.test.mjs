@@ -211,12 +211,20 @@ test('PUSH C/V moves tuning between COM and VLOC', () => {
   assert.equal(g.view.vloc.standby, '111.25', 'large knob steps 1 MHz');
 });
 
-test('VLOC tuning wraps at the top of the band', () => {
+test('the VLOC small knob wraps its kilohertz, not the whole band', () => {
+  // This test used to assert 108.00, which was the bug: the small knob was
+  // adding to the whole frequency, so it carried into the megahertz and then
+  // fell off the end of the band. On the real box the two halves of the knob
+  // are independent.
   const g = new GNS(db);
   press(g, 'CV');
-  g.vloc.standby = '117.95'; // top of the nav band
+  g.vloc.standby = '117.95'; // top of the kilohertz, top of the band
   turn(g, 'LEFT_SMALL', 1);
-  assert.equal(g.view.vloc.standby, '108.00');
+  assert.equal(g.view.vloc.standby, '117.00', 'kilohertz wrap stays in 117');
+
+  g.vloc.standby = '117.95';
+  turn(g, 'LEFT_LARGE', 1);
+  assert.equal(g.view.vloc.standby, '108.95', 'the megahertz wraps and keeps the kilohertz');
 });
 
 test('CDI toggles the nav source and OBS toggles suspend', () => {
@@ -246,4 +254,58 @@ test('the page menu reports which page it was opened over', () => {
   press(g, 'CLR');
   press(g, 'MENU');
   assert.equal(g.view.menu.from, 'FPL');
+});
+
+test('the COM small knob never carries into the megahertz', () => {
+  // Turning the small knob past .975 stepped the frequency up a whole
+  // megahertz: 124.975 became 125.000. On the real box it wraps to 124.000 —
+  // the small knob cannot change which megahertz you are on.
+  const g = new GNS(db);
+  g.com.standby = '124.975';
+  turn(g, 'LEFT_SMALL', 1);
+  assert.equal(g.view.com.standby, '124.000');
+
+  g.com.standby = '124.000';
+  turn(g, 'LEFT_SMALL', -1);
+  assert.equal(g.view.com.standby, '124.975', 'backwards wraps the same way');
+});
+
+test('the COM large knob wraps the band and keeps the kilohertz', () => {
+  const g = new GNS(db);
+  g.com.standby = '136.450';
+  turn(g, 'LEFT_LARGE', 1);
+  assert.equal(g.view.com.standby, '118.450');
+
+  g.com.standby = '118.450';
+  turn(g, 'LEFT_LARGE', -1);
+  assert.equal(g.view.com.standby, '136.450');
+});
+
+test('tuning does not drift', () => {
+  // 0.025 has no exact binary representation, so repeated addition used to
+  // creep. Forty clicks is one full turn of the kilohertz.
+  const g = new GNS(db);
+  g.com.standby = '121.700';
+  for (let i = 0; i < 40; i++) turn(g, 'LEFT_SMALL', 1);
+  assert.equal(g.view.com.standby, '121.700');
+
+  for (let i = 0; i < 17; i++) turn(g, 'LEFT_SMALL', 1);
+  for (let i = 0; i < 17; i++) turn(g, 'LEFT_SMALL', -1);
+  assert.equal(g.view.com.standby, '121.700');
+});
+
+test('every reachable COM frequency is a real 25 kHz channel', () => {
+  const g = new GNS(db);
+  g.com.standby = '118.000';
+  const seen = new Set();
+  for (let i = 0; i < 19 * 40 + 5; i++) {
+    turn(g, 'LEFT_SMALL', 1);
+    if (i % 40 === 39) turn(g, 'LEFT_LARGE', 1);
+    const f = g.view.com.standby;
+    const mhz = Number(f);
+    assert.ok(mhz >= 118 && mhz <= 136.975, `${f} is outside the COM band`);
+    assert.equal(Math.round(mhz * 1000) % 25, 0, `${f} is not a 25 kHz channel`);
+    seen.add(f);
+  }
+  assert.ok(seen.size > 700, `expected most of the band to be reachable, saw ${seen.size}`);
 });

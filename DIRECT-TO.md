@@ -90,6 +90,19 @@ magenta, Class D dashed blue, Class E surface areas dotted. A momentary **CLR**
 declutters in two steps (airspace off, then the basemap too) and wraps back, as
 the Pilot's Guide describes.
 
+## Tuning the radios
+
+The left knob tunes the standby frequency, and its two halves are independent,
+as they are on the real box. The large one moves the megahertz; the small one
+moves the kilohertz in 25 kHz steps for COM, 50 kHz for VLOC. Neither carries
+into the other: rolling the small knob past `.975` wraps to `.000` of the same
+megahertz rather than stepping you up a channel, and rolling the large knob past
+the top of the band keeps the kilohertz you had. **PUSH C/V** swaps which radio
+the knob is tuning; the flip-flop key swaps standby with active.
+
+Tuning is done in whole kilohertz internally. `0.025` has no exact binary
+representation, so adding it repeatedly drifts — far enough to reach the display.
+
 ## Nearest airports
 
 **Large right knob** to the NRST group. **PUSH CRSR**, scroll with the large
