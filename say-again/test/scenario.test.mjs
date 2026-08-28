@@ -290,12 +290,18 @@ test('every scenario grades its own model answer as correct', () => {
   let checked = 0;
   for (const sc of scenarios) {
     for (const s of sc.steps) {
-      const model = s.exampleSpeech ?? s.readback;
+      // On an announce step the example is the whole transmission. On a
+      // readback step the example is the *initial call*, and the requirements
+      // are what the controller then asks you to read back — so grading the
+      // example against them compares two different transmissions.
+      const model = s.mode === 'announce' ? s.exampleSpeech : s.readback;
       if (!model) continue;
       checked += 1;
       const r = grade(model, s.requires ?? [], { ...ac, mode: s.mode });
+      // `grade()` returns `missed`, not `missing`. Checking the wrong key made
+      // this assertion vacuous, which is worse than not having written it.
       assert.deepEqual(
-        r.missing ?? [], [],
+        r.missed.map((m) => m.label), [],
         `${sc.title} / ${s.id}: model answer missing a requirement — ${model}`,
       );
       assert.deepEqual(

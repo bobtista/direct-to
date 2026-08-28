@@ -344,6 +344,40 @@ for (const [letter, words] of Object.entries(MISHEARD)) {
   for (const w of words) HEARD_AS[w] = letter;
 }
 
+
+/**
+ * Did the pilot read back this frequency?
+ *
+ * Nobody says the trailing zeros: a controller assigns 124.100 and you answer
+ * "one two four point one". Comparing digit strings makes those different, so
+ * this pulls every frequency-shaped run of digits out of the transmission and
+ * compares them as numbers.
+ *
+ * It matches whole runs rather than substrings, so reading back 124.125 does
+ * not satisfy a requirement for 124.1 by sharing its leading digits.
+ */
+export function saidFrequency(said, mhz) {
+  const want = Number(mhz);
+  if (!Number.isFinite(want)) return false;
+
+  // Normalising runs consecutive numbers together — "one two four point one,
+  // five sierra papa" collapses to "12415SP" — so the frequency and the
+  // callsign after it become one digit run. A comma is what separates them
+  // when they are spoken, so split there before looking.
+  for (const chunk of String(said).split(/[,;]/)) {
+    for (const run of normalize(chunk).match(/\d+/g) ?? []) {
+      // COM and NAV frequencies are 108–137, so the megahertz is always three
+      // digits starting with a 1. Anything else is a squawk or a heading.
+      if (run.length < 4 || run.length > 6 || run[0] !== '1') continue;
+      const got = Number(`${run.slice(0, 3)}.${run.slice(3).padEnd(3, '0')}`);
+      if (Math.abs(got - want) < 0.0005) return true;
+    }
+  }
+  return false;
+}
+
+
+
 /**
  * Did the pilot say something callsign-shaped anywhere in the transmission?
  *

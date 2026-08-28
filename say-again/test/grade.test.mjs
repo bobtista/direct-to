@@ -172,3 +172,31 @@ test('a readback that is wrong is still wrong, however it was transcribed', () =
   const r = grade('taxi via alpha, Skyhawk 50 pop', [req.runway('17'), req.holdShort('17')], AC);
   assert.equal(r.safe, false, 'no hold short, no runway — mangling is no excuse');
 });
+
+test('a frequency is graded on its value, not its trailing zeros', () => {
+  // ATC assigns 124.100 and every pilot reads back "124.1". Comparing digit
+  // strings made those different things and failed a correct readback.
+  for (const said of [
+    '124.1, Skyhawk 5SP',
+    '124.100, Skyhawk 5SP',
+    'one two four point one, five sierra papa',
+    'over to approach on one two four point one, 5SP',
+  ]) {
+    const r = grade(said, [req.frequency('124.100')], AC);
+    assert.ok(r.safe, `${said} — ${r.summary}`);
+  }
+});
+
+test('a frequency sharing the leading digits is still wrong', () => {
+  // The looser the match, the easier it is to pass by saying something else.
+  for (const said of ['124.125, Skyhawk 5SP', '124.15, Skyhawk 5SP', 'Skyhawk 5SP']) {
+    const r = grade(said, [req.frequency('124.100')], AC);
+    assert.equal(r.safe, false, `${said} should not satisfy 124.100`);
+  }
+});
+
+test('a frequency requirement is labelled the way it is spoken', () => {
+  const r = grade('Skyhawk 5SP', [req.frequency('124.100')], AC);
+  assert.match(r.summary, /124\.1\b/);
+  assert.doesNotMatch(r.summary, /124\.100/);
+});

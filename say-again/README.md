@@ -15,7 +15,7 @@ From the repo root:
 npm start
 ```
 
-Then open <http://localhost:8765/say-again/>. `npm test` runs 100 tests with no browser.
+Then open <http://localhost:8765/say-again/>. `npm test` runs 103 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
 
@@ -127,6 +127,11 @@ word "runway" there is no other sensible reading, so all of them count. The
 window is two tokens wide and closes immediately, because the same homophones
 everywhere would be a disaster: *"climb to three thousand"* must never become
 *"climb 23 thousand"*. Reading back the wrong runway still fails.
+
+Frequencies are compared as numbers, not as digits. ATC assigns 124.100 and
+every pilot reads back *"124.1"* — nobody speaks the trailing zeros. The
+comparison is anchored to whole frequencies rather than substrings, so reading
+back 124.125 does not satisfy 124.1 by sharing its leading digits.
 
 Grading works on meaning, not spelling: *"one two four point one"* and
 *"124.1"* are the same thing, and so are *"niner"* and *"9"*, *"cleared for take

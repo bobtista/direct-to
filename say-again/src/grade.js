@@ -8,7 +8,7 @@
 //
 // No DOM, so it runs under plain node.
 
-import { contains, normalize, soundsLikeCallsign } from './phraseology.js';
+import { contains, normalize, soundsLikeCallsign, saidFrequency } from './phraseology.js';
 
 /**
  * Is this just a callup — "Boston Approach, Skyhawk 725SP" — rather than a
@@ -97,9 +97,11 @@ export function grade(said, required = [], ctx = {}) {
   const mode = ctx.mode === 'announce' ? 'announce' : 'readback';
   const heard = normalize(said);
   // A requirement may list several acceptable forms; any one of them counts.
+  // A few need real comparison rather than string matching and carry their own
+  // test — frequencies, where nobody speaks the trailing zeros.
   const items = required.map((r) => ({
     ...r,
-    ok: [].concat(r.value).some((v) => contains(said, v)),
+    ok: r.test ? r.test(said) : [].concat(r.value).some((v) => contains(said, v)),
   }));
 
   const missed = items.filter((i) => !i.ok);
@@ -166,6 +168,9 @@ export function altitudeForms(ft) {
   return forms;
 }
 
+/** 124.100 reads back as 124.1 — label it the way it is spoken. */
+const trimFreq = (mhz) => String(Number(mhz));
+
 export const req = {
   runway: (rwy) => ({ key: 'runway', value: rwy, label: `runway ${rwy}`, critical: true }),
   holdShort: (rwy) => ({
@@ -193,7 +198,11 @@ export const req = {
   frequency: (mhz) => ({
     key: 'frequency',
     value: String(mhz),
-    label: `frequency ${mhz}`,
+    // "124.1" and "124.100" are the same frequency and only one of them is ever
+    // spoken. Comparing numbers settles it, without letting 124.125 pass by
+    // sharing the leading digits.
+    test: (said) => saidFrequency(said, mhz),
+    label: `frequency ${trimFreq(mhz)}`,
     critical: true,
   }),
   altimeter: (inHg) => ({
