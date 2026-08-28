@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { Listener, pickFormat, hintFor, isLocalPage } from '../src/listen.js';
+import { Listener, pickFormat, hintFor, isLocalPage, preferredDevice } from '../src/listen.js';
 
 test('picks the browser recording format, preferring opus', () => {
   const chrome = pickFormat((m) => m.startsWith('audio/webm'));
@@ -226,4 +226,39 @@ test('settling reports why, when there is a reason', () => {
   const { l, notes } = listenerWithFakeSR();
   l._settle('Microphone unavailable: NotAllowedError');
   assert.deepEqual(notes, ['Microphone unavailable: NotAllowedError']);
+});
+
+test('a phone is never the default microphone', () => {
+  // macOS Continuity advertises an iPhone as an input and browsers will pick it
+  // as "default" — while it is face down in a pocket.
+  const devices = [
+    { kind: 'audioinput', deviceId: 'default', label: "Bobby's iPhone Microphone" },
+    { kind: 'audioinput', deviceId: 'mbp', label: 'MacBook Pro Microphone' },
+    { kind: 'audioinput', deviceId: 'pods', label: 'AirPods Pro' },
+    { kind: 'videoinput', deviceId: 'cam', label: 'FaceTime HD Camera' },
+  ];
+  assert.equal(preferredDevice(devices).deviceId, 'mbp');
+});
+
+test('an explicit choice beats the heuristic', () => {
+  const devices = [
+    { kind: 'audioinput', deviceId: 'default', label: 'MacBook Pro Microphone' },
+    { kind: 'audioinput', deviceId: 'phone', label: 'iPhone Microphone' },
+  ];
+  // If someone deliberately picked the phone, that is their business.
+  assert.equal(preferredDevice(devices, 'phone').deviceId, 'phone');
+});
+
+test('the ordinary default is left alone', () => {
+  const devices = [
+    { kind: 'audioinput', deviceId: 'default', label: 'Default — MacBook Pro Microphone' },
+    { kind: 'audioinput', deviceId: 'mbp', label: 'MacBook Pro Microphone' },
+  ];
+  assert.equal(preferredDevice(devices).deviceId, 'default');
+});
+
+test('a stored device that has been unplugged falls back', () => {
+  const devices = [{ kind: 'audioinput', deviceId: 'mbp', label: 'MacBook Pro Microphone' }];
+  assert.equal(preferredDevice(devices, 'headset-that-is-gone').deviceId, 'mbp');
+  assert.equal(preferredDevice([], 'anything'), null);
 });

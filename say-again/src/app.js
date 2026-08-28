@@ -11,7 +11,7 @@ import { WRITTEN, SPOKEN } from './phraseology.js';
 import { RadioStack, sameFreq } from './radiostack.js';
 import { setBasemap } from '../../src/mapdraw.js';
 import { bestAlternative } from './phraseology.js';
-import { Listener, hintFor, isLocalPage } from './listen.js';
+import { Listener, hintFor, isLocalPage, preferredDevice } from './listen.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -39,6 +39,8 @@ const els = {
   ear: $('ear'),
   tuned: $('tuned'),
   status: $('status'),
+  micRow: $('mic-row'),
+  mic: $('mic'),
   callsign: $('callsign'),
   kind: $('kind'),
   bravo: $('bravo'),
@@ -480,7 +482,12 @@ const listener = new Listener({
   onStatus: (state) => {
     if (state === 'listening') setStatus('Listening — release to send.', true);
     else if (state === 'working') setStatus('Working out what you said…');
-    else setStatus('');
+    else {
+      setStatus('');
+      // Device labels are blank until the microphone has been granted once, so
+      // the list is worth rebuilding after the first transmission.
+      if (!micsNamed) refreshMics();
+    }
   },
   onResult: (alts, engine) => {
     // The browser recogniser often gets aviation speech right only in its
@@ -504,7 +511,54 @@ new ResizeObserver(() => {
   document.documentElement.style.setProperty('--dock-h', `${h}px`);
 }).observe(els.panel);
 
+// --- microphone choice ---------------------------------------------------
+//
+// macOS Continuity offers your iPhone as an input, and browsers will pick it as
+// the default even when it is face down in a pocket. Only the local recogniser
+// can be pointed at a device: the browser's own speech recognition takes
+// whatever Chrome considers default and offers no way to ask.
+
+const MIC_KEY = 'sayagain.mic';
+
+let micsNamed = false;
+
+async function refreshMics() {
+  if (listener.engine !== 'atc') return;
+  const mics = await listener.devices();
+  if (mics.length < 2) return; // nothing to choose between
+  micsNamed = mics.some((d) => d.label);
+
+  const stored = localStorage.getItem(MIC_KEY);
+  const pick = preferredDevice(mics, stored);
+  listener.setDevice(pick?.deviceId ?? null);
+
+  els.mic.innerHTML = '';
+  for (const d of mics) {
+    const o = document.createElement('option');
+    o.value = d.deviceId;
+    // Labels stay blank until permission has been granted once.
+    o.textContent = d.label || 'Microphone';
+    o.selected = d.deviceId === pick?.deviceId;
+    els.mic.appendChild(o);
+  }
+  els.micRow.hidden = false;
+}
+
+els.mic.addEventListener('change', () => {
+  listener.setDevice(els.mic.value);
+  try {
+    localStorage.setItem(MIC_KEY, els.mic.value);
+  } catch {
+    // Private browsing: the choice just will not survive a reload.
+  }
+  log('note', `Listening on ${els.mic.selectedOptions[0]?.textContent ?? 'the selected microphone'}.`);
+});
+
+// Someone plugging in a headset mid-session should see it appear.
+navigator.mediaDevices?.addEventListener?.('devicechange', refreshMics);
+
 listener.probe().then(() => {
+  refreshMics();
   showEngine();
   refreshControls();
 });

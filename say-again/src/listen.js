@@ -70,6 +70,24 @@ export function isLocalPage(host = window.location?.hostname ?? '') {
   return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '';
 }
 
+// A phone in your pocket is never the microphone you meant. macOS Continuity
+// advertises an iPhone as an input device and browsers will happily pick it as
+// the default, so these get sorted to the back unless explicitly chosen.
+const AWKWARD_INPUT = /iphone|ipad|continuity|watch/i;
+
+/** The input this browser should use when nobody has chosen one. */
+export function preferredDevice(devices, storedId = null) {
+  const inputs = devices.filter((d) => d.kind === 'audioinput');
+  if (!inputs.length) return null;
+  const stored = inputs.find((d) => d.deviceId === storedId);
+  if (stored) return stored;
+  return (
+    inputs.find((d) => d.deviceId === 'default' && !AWKWARD_INPUT.test(d.label)) ??
+    inputs.find((d) => !AWKWARD_INPUT.test(d.label)) ??
+    inputs[0]
+  );
+}
+
 export class Listener {
   /**
    * @param {{onResult: (text: string, engine: string) => void,
@@ -90,6 +108,7 @@ export class Listener {
     this.hint = '';
 
     this._stream = null;
+    this._deviceId = null;
     this._recorder = null;
     this._chunks = [];
     this._format = null;
@@ -176,6 +195,38 @@ export class Listener {
       // Not running. The browser recogniser is the fallback, so say nothing.
     }
     return this.engine;
+  }
+
+  /**
+   * Which microphones this browser can offer.
+   *
+   * Labels are blank until permission has been granted at least once, so this
+   * is worth calling again after the first transmission.
+   */
+  async devices() {
+    if (!navigator.mediaDevices?.enumerateDevices) return [];
+    try {
+      const all = await navigator.mediaDevices.enumerateDevices();
+      return all.filter((d) => d.kind === 'audioinput');
+    } catch {
+      return [];
+    }
+  }
+
+  /** Use this input from now on. Drops the open stream so it is re-acquired. */
+  setDevice(deviceId) {
+    if (deviceId === this._deviceId) return;
+    this._deviceId = deviceId || null;
+    this._releaseStream();
+  }
+
+  get deviceId() {
+    return this._deviceId;
+  }
+
+  _releaseStream() {
+    for (const t of this._stream?.getTracks() ?? []) t.stop();
+    this._stream = null;
   }
 
   /** Expected phraseology for the current step, used to bias decoding. */
@@ -265,9 +316,22 @@ export class Listener {
     try {
       // Hold the stream open between transmissions: re-requesting it each time
       // costs half a second, which is long enough to clip the first word.
-      this._stream ??= await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
-      });
+      const constraints = { channelCount: 1, echoCancellation: true, noiseSuppression: true };
+      // `exact` so a stale saved device fails loudly rather than silently
+      // handing the transmission back to whatever the browser prefers.
+      if (this._deviceId) constraints.deviceId = { exact: this._deviceId };
+      try {
+        this._stream ??= await navigator.mediaDevices.getUserMedia({ audio: constraints });
+      } catch (err) {
+        if (!this._deviceId) throw err;
+        // Unplugged headset, phone walked out of range: fall back rather than
+        // leaving someone with a dead key and no explanation.
+        this.onNote('That microphone is no longer available — using the default.');
+        this._deviceId = null;
+        this._stream = await navigator.mediaDevices.getUserMedia({
+          audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+        });
+      }
     } catch (err) {
       this._settle(`Microphone unavailable: ${err.name}`);
       return;

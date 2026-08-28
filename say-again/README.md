@@ -15,7 +15,7 @@ From the repo root:
 npm start
 ```
 
-Then open <http://localhost:8765/say-again/>. `npm test` runs 96 tests with no browser.
+Then open <http://localhost:8765/say-again/>. `npm test` runs 100 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
 
@@ -161,6 +161,21 @@ terms permit personal listening only and forbid derivative works; ElevenLabs
 requires verified consent for any voice that is not yours; and several states
 require written consent to clone a real person. None of it is necessary — the
 realism is in the channel and the phraseology.
+
+## Which microphone
+
+macOS Continuity advertises your iPhone as an audio input, and browsers cheerfully
+pick it as "default" — so a transmission gets recorded by a phone lying face down
+in your pocket. When more than one input exists, a **Microphone** picker appears
+under the buttons; the choice is remembered, and a phone, iPad or watch is sorted
+behind everything else unless you deliberately choose it. Unplug the selected
+device mid-session and it says so and falls back rather than dying quietly.
+
+This only applies to the local recogniser. **The browser's own speech recognition
+gives no way to choose an input** — it takes whatever Chrome considers default,
+and the Web Speech API exposes no device parameter at all. On that engine the fix
+has to happen outside the page, in macOS Settings → Sound → Input, or by
+disconnecting the phone from Continuity.
 
 ## Hearing you properly
 
