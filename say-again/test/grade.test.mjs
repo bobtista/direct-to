@@ -200,3 +200,43 @@ test('a frequency requirement is labelled the way it is spoken', () => {
   assert.match(r.summary, /124\.1\b/);
   assert.doesNotMatch(r.summary, /124\.100/);
 });
+
+test('saying the right number the wrong way explains itself', () => {
+  // "Runway ten" is the right runway in the wrong words. Failing without
+  // saying why reads like a broken grader rather than a correction, which is
+  // the opposite of the point.
+  const r = grade('runway ten, taxi via alpha, hold short runway ten, Skyhawk 5SP',
+    [req.runway('10'), req.holdShort('10')], AC);
+  assert.equal(r.safe, false, 'it is still the wrong phraseology');
+  assert.match(r.summary, /you said "ten"/i);
+  assert.match(r.summary, /digit by digit/i);
+  assert.match(r.summary, /one zero/);
+});
+
+test('a squawk read as pairs is explained too', () => {
+  const r = grade('squawk forty-six eighty, Skyhawk 5SP', [req.squawk('4680')], AC);
+  assert.equal(r.safe, false);
+  assert.match(r.summary, /forty six eighty/i);
+  assert.match(r.summary, /four six eight zero/);
+});
+
+test('the correct phraseology passes and says nothing extra', () => {
+  const r = grade('runway one zero, taxi via alpha, hold short runway one zero, Skyhawk 5SP',
+    [req.runway('10'), req.holdShort('10')], AC);
+  assert.ok(r.pass, r.summary);
+  assert.doesNotMatch(r.summary, /digit by digit/i);
+});
+
+test('a genuinely missing readback is not explained away', () => {
+  // No number was spoken at all, so there is nothing to correct — just a miss.
+  const r = grade('hold short, Skyhawk 5SP', [req.runway('10'), req.holdShort('10')], AC);
+  assert.equal(r.safe, false);
+  assert.doesNotMatch(r.summary, /digit by digit/i);
+});
+
+test('the wrong runway is not mistaken for the wrong wording', () => {
+  const r = grade('runway two eight, hold short runway two eight, Skyhawk 5SP',
+    [req.runway('10'), req.holdShort('10')], AC);
+  assert.equal(r.safe, false);
+  assert.doesNotMatch(r.summary, /digit by digit/i, 'they said digits, just the wrong ones');
+});

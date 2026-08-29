@@ -8,7 +8,15 @@
 //
 // No DOM, so it runs under plain node.
 
-import { contains, normalize, soundsLikeCallsign, saidFrequency } from './phraseology.js';
+import {
+  contains,
+  normalize,
+  soundsLikeCallsign,
+  saidFrequency,
+  saidAsWholeNumber,
+  saidAsPairedNumber,
+  digitWords,
+} from './phraseology.js';
 
 /**
  * Is this just a callup — "Boston Approach, Skyhawk 725SP" — rather than a
@@ -102,6 +110,12 @@ export function grade(said, required = [], ctx = {}) {
   const items = required.map((r) => ({
     ...r,
     ok: r.test ? r.test(said) : [].concat(r.value).some((v) => contains(said, v)),
+  })).map((r) => ({
+    ...r,
+    // A missed requirement can say *why*, when it knows. Being told "missing:
+    // runway 10" after saying "runway ten" reads like a broken grader; being
+    // told the digits are spoken singly is the whole lesson.
+    why: r.ok ? null : (r.explain?.(said) ?? null),
   }));
 
   const missed = items.filter((i) => !i.ok);
@@ -138,6 +152,9 @@ function summarise({ pass, missed, missedCritical, habits, mode = 'readback' }) 
   if (missedCritical.length) {
     const label = missedCritical.map((m) => m.label).join(', ');
     parts.push(announce ? `Your call is missing: ${label}.` : `Missing required readback: ${label}.`);
+    // Where we can tell what went wrong, say that instead of leaving someone
+    // to wonder whether the grader misheard them.
+    for (const m of missedCritical) if (m.why) parts.push(m.why);
   }
   const soft = missed.filter((m) => !m.critical);
   if (soft.length) {
@@ -168,11 +185,30 @@ export function altitudeForms(ft) {
   return forms;
 }
 
+/**
+ * "Runway ten" is the right runway in the wrong words.
+ *
+ * The number was understood, so failing without saying why looks like a bug in
+ * the grader rather than a correction to the phraseology.
+ */
+function spokenWhole(said, n, what) {
+  const digits = String(n).replace(/\D/g, '');
+  const words = saidAsWholeNumber(said, digits);
+  if (!words) return null;
+  return `You said "${words}" — ${what.toLowerCase()} go digit by digit: "${digitWords(digits)}".`;
+}
+
 /** 124.100 reads back as 124.1 — label it the way it is spoken. */
 const trimFreq = (mhz) => String(Number(mhz));
 
 export const req = {
-  runway: (rwy) => ({ key: 'runway', value: rwy, label: `runway ${rwy}`, critical: true }),
+  runway: (rwy) => ({
+    key: 'runway',
+    value: rwy,
+    label: `runway ${rwy}`,
+    critical: true,
+    explain: (said) => spokenWhole(said, rwy, 'Runway numbers'),
+  }),
   holdShort: (rwy) => ({
     key: 'holdShort',
     value: 'hold short',
@@ -194,7 +230,18 @@ export const req = {
     label: `heading ${String(deg).padStart(3, '0')}`,
     critical: true,
   }),
-  squawk: (code) => ({ key: 'squawk', value: String(code), label: `squawk ${code}`, critical: true }),
+  squawk: (code) => ({
+    key: 'squawk',
+    value: String(code),
+    label: `squawk ${code}`,
+    critical: true,
+    explain: (said) => {
+      const words = saidAsPairedNumber(said, code) ?? saidAsWholeNumber(said, code);
+      return words
+        ? `You said "${words}" — squawk codes go digit by digit: "${digitWords(code)}".`
+        : null;
+    },
+  }),
   frequency: (mhz) => ({
     key: 'frequency',
     value: String(mhz),

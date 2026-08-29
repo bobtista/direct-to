@@ -345,6 +345,71 @@ for (const [letter, words] of Object.entries(MISHEARD)) {
 }
 
 
+
+const ONES = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+const TEENS = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen',
+  'seventeen', 'eighteen', 'nineteen'];
+const TENS = { 2: 'twenty', 3: 'thirty', 4: 'forty', 5: 'fifty', 6: 'sixty', 7: 'seventy',
+  8: 'eighty', 9: 'ninety' };
+
+/** "28" as most people would read it aloud: "twenty eight". */
+export function wholeNumberWords(n) {
+  const v = Number(n);
+  if (!Number.isInteger(v) || v < 0 || v > 99) return null;
+  if (v < 10) return ONES[v];
+  if (v < 20) return TEENS[v - 10];
+  const tens = TENS[Math.floor(v / 10)];
+  const unit = v % 10;
+  return unit ? `${tens} ${ONES[unit]}` : tens;
+}
+
+/**
+ * Did the pilot say this number as a whole rather than digit by digit?
+ *
+ * "Runway ten" and "squawk forty-six eighty" mean the right thing and are the
+ * wrong phraseology — AIM 4-2-3 wants the digits spoken singly. Worth telling
+ * someone apart from simply failing them, because the difference between a
+ * wrong readback and the wrong wording is the entire lesson.
+ *
+ * @returns the words they used, or null
+ */
+export function saidAsWholeNumber(said, n) {
+  const words = wholeNumberWords(n);
+  if (!words) return null;
+  const hay = String(said).toLowerCase().replace(/[-,]/g, ' ').replace(/\s+/g, ' ');
+  return hay.includes(words) ? words : null;
+}
+
+/**
+ * Did the pilot say a four-digit code as two two-digit numbers?
+ *
+ * "Squawk forty-six eighty" for 4680 — the commonest way to get a squawk code
+ * wrong while still meaning the right one.
+ *
+ * @returns the words they used, or null
+ */
+export function saidAsPairedNumber(said, code) {
+  const digits = String(code).replace(/\D/g, '');
+  if (digits.length !== 4) return null;
+  const hay = String(said).toLowerCase().replace(/[-,]/g, ' ').replace(/\s+/g, ' ');
+  const first = wholeNumberWords(Number(digits.slice(0, 2)));
+  const second = wholeNumberWords(Number(digits.slice(2)));
+  if (!first || !second) return null;
+  // Both halves have to be there, in order, or it is not this code.
+  const at = hay.indexOf(first);
+  if (at === -1) return null;
+  return hay.indexOf(second, at + first.length) === -1 ? null : `${first} ${second}`;
+}
+
+/** "10" spoken the way it should be: "one zero". */
+export function digitWords(n) {
+  return String(n)
+    .split('')
+    .map((c) => (ONES[Number(c)] !== undefined && /\d/.test(c) ? ONES[Number(c)] : c))
+    .join(' ');
+}
+
+
 /**
  * Did the pilot read back this frequency?
  *

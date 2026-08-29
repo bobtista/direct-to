@@ -15,7 +15,7 @@ From the repo root:
 npm start
 ```
 
-Then open <http://localhost:8765/say-again/>. `npm test` runs 103 tests with no browser.
+Then open <http://localhost:8765/say-again/>. `npm test` runs 108 tests with no browser.
 
 **It makes noise by design.** There is a Mute button, and the setting sticks.
 
@@ -127,6 +127,17 @@ word "runway" there is no other sensible reading, so all of them count. The
 window is two tokens wide and closes immediately, because the same homophones
 everywhere would be a disaster: *"climb to three thousand"* must never become
 *"climb 23 thousand"*. Reading back the wrong runway still fails.
+
+When a readback means the right thing in the wrong words, it says so rather
+than just failing. *"Runway ten"* is the right runway and the wrong phraseology
+— AIM 4-2-3 wants the digits spoken singly — so instead of a bare *"missing:
+runway 10"*, which reads like the grader mishearing you, it answers:
+
+> You said "ten" — runway numbers go digit by digit: "one zero".
+
+Same for a squawk read as pairs: *"forty-six eighty"* against 4680. Reading back
+the wrong runway gets no such explanation, because there is nothing wrong with
+how it was said.
 
 Frequencies are compared as numbers, not as digits. ATC assigns 124.100 and
 every pilot reads back *"124.1"* — nobody speaks the trailing zeros. The
